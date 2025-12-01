@@ -11,6 +11,7 @@
 export function extractBaseCourse(courseName) {
   if (!courseName) return '';
 
+  const originalName = courseName;
   let baseName = courseName;
 
   // Step 1: Remove version patterns (in order of specificity)
@@ -68,6 +69,11 @@ export function extractBaseCourse(courseName) {
 
   // Step 5: Trim and normalize whitespace
   baseName = baseName.trim().replace(/\s+/g, ' ');
+
+  // Debug log for troubleshooting
+  if (originalName.toLowerCase().includes('meaningful')) {
+    console.log(`Course grouping: "${originalName}" → "${baseName}"`);
+  }
 
   return baseName;
 }
