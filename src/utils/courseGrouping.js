@@ -70,6 +70,10 @@ export function extractBaseCourse(courseName) {
   // Step 5: Trim and normalize whitespace
   baseName = baseName.trim().replace(/\s+/g, ' ');
 
+  // Step 6: Remove trailing punctuation (colons, dashes, commas, semicolons)
+  // "Meaningful Connection:" -> "Meaningful Connection"
+  baseName = baseName.replace(/[\s:,;\-]+$/, '');
+
   // Debug log for troubleshooting
   if (originalName.toLowerCase().includes('meaningful')) {
     console.log(`Course grouping: "${originalName}" → "${baseName}"`);
