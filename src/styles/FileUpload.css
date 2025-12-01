@@ -1,0 +1,146 @@
+.file-upload {
+  width: 100%;
+}
+
+.drop-zone {
+  border: 3px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
+  text-align: center;
+  background: var(--bg-primary);
+  transition: all var(--transition-base);
+  cursor: pointer;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.drop-zone:hover {
+  border-color: var(--primary-blue);
+  background: var(--bg-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.drop-zone.dragging {
+  border-color: var(--primary-teal);
+  background: linear-gradient(135deg, rgba(0, 136, 254, 0.05) 0%, rgba(0, 196, 159, 0.05) 100%);
+  border-width: 4px;
+}
+
+.drop-zone.loading {
+  cursor: default;
+  border-color: var(--primary-blue);
+}
+
+.upload-icon {
+  color: var(--primary-blue);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.drop-zone h3 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.drop-zone p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.browse-button {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-teal) 100%);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-block;
+}
+
+.browse-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.file-format-hint {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid var(--gray-200);
+  border-top-color: var(--primary-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-state p {
+  color: var(--primary-blue);
+  font-weight: 500;
+  font-size: 1.125rem;
+}
+
+.error-message {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--accent-red);
+  border-radius: var(--radius-md);
+  color: var(--accent-red);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 500;
+}
+
+.error-message svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .drop-zone {
+    padding: var(--spacing-xl);
+    min-height: 300px;
+  }
+
+  .drop-zone h3 {
+    font-size: 1.25rem;
+  }
+
+  .drop-zone p {
+    font-size: 0.9rem;
+  }
+}

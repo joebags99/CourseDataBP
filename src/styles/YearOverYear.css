@@ -1,0 +1,254 @@
+.year-over-year {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.section-header h2 {
+  color: var(--text-primary);
+}
+
+.header-controls {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.chart-type-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chart-type-select:hover {
+  border-color: var(--primary-blue);
+}
+
+.export-button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--primary-emerald);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.export-button:hover:not(:disabled) {
+  background: var(--secondary-green);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.yoy-content {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--spacing-xl);
+}
+
+.course-selector {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  height: fit-content;
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.selector-header h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.select-all-button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--primary-blue);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.select-all-button:hover {
+  background: var(--secondary-blue);
+  transform: scale(1.05);
+}
+
+.course-list {
+  max-height: 600px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.course-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.course-checkbox:hover {
+  background: var(--bg-tertiary);
+}
+
+.course-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-blue);
+}
+
+.course-name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.course-years {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.yoy-visualization {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.empty-state {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-color);
+}
+
+.chart-container {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.chart-container h3 {
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-primary);
+}
+
+.yoy-table h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.yoy-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-primary);
+}
+
+.yoy-table th {
+  background: var(--bg-tertiary);
+  padding: var(--spacing-md);
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.yoy-table td {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.yoy-table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+.rate-badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: inline-block;
+}
+
+.rate-badge.high {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--primary-emerald);
+}
+
+.rate-badge.medium {
+  background: rgba(255, 187, 40, 0.1);
+  color: var(--accent-yellow);
+}
+
+.rate-badge.low {
+  background: rgba(255, 128, 66, 0.1);
+  color: var(--accent-orange);
+}
+
+@media (max-width: 1024px) {
+  .yoy-content {
+    grid-template-columns: 1fr;
+  }
+
+  .course-selector {
+    position: static;
+  }
+
+  .course-list {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .year-over-year {
+    padding: var(--spacing-md);
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

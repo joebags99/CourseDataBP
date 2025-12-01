@@ -1,0 +1,58 @@
+Report Title: Course Completion Report
+Generated: 2024-12-01
+Organization: Sample Healthcare Organization
+Period: 2022-2024
+Export Version: 1.0
+Filter: All Staff
+Notes: Sample data for testing
+Legal Firstname,Preferred Firstname,Lastname,Email,Course,% Completed,Enrolled At,Date Completed
+Sarah,Sarah,Johnson,sarah.johnson@example.com,Trauma 101,100,2023-01-15 CST,2023-02-01 CST
+Michael,Mike,Chen,mike.chen@example.com,Trauma 101,100,2023-01-20 CST,2023-02-15 CST
+Emily,,Rodriguez,emily.rodriguez@example.com,CPR Training,100,2023-02-01 CST,2023-02-10 CST
+David,Dave,Thompson,dave.thompson@example.com,Fire Safety,75,2023-02-05 CST,
+Jennifer,Jen,Martinez,jen.martinez@example.com,HIPAA Compliance,100,2023-02-10 CST,2023-03-01 CST
+Robert,Bob,Anderson,bob.anderson@example.com,Trauma 101 (2025 update),100,2024-01-10 CST,2024-01-25 CST
+Lisa,,Taylor,lisa.taylor@example.com,Trauma 101 (2025 update),100,2024-01-15 CST,2024-02-01 CST
+James,Jim,White,jim.white@example.com,CPR Training,50,2024-01-20 CST,
+Maria,,Garcia,maria.garcia@example.com,Fire Safety,100,2024-01-25 CST,2024-02-20 CST
+Christopher,Chris,Lee,chris.lee@example.com,HIPAA Compliance,100,2024-02-01 CST,2024-02-28 CST
+Amanda,,Harris,amanda.harris@example.com,Patient Care Basics,100,2023-03-01 CST,2023-03-30 CST
+Matthew,Matt,Clark,matt.clark@example.com,Patient Care Basics,100,2023-03-05 CST,2023-04-01 CST
+Jessica,,Lewis,jessica.lewis@example.com,Medication Safety,100,2023-03-10 CST,2023-04-15 CST
+Daniel,Dan,Walker,dan.walker@example.com,Medication Safety,80,2023-03-15 CST,
+Ashley,,Hall,ashley.hall@example.com,Infection Control,100,2023-04-01 CST,2023-04-25 CST
+Joshua,Josh,Young,josh.young@example.com,Infection Control,100,2023-04-05 CST,2023-05-01 CST
+Stephanie,,King,stephanie.king@example.com,Patient Rights,100,2023-04-10 CST,2023-05-05 CST
+Ryan,,Wright,ryan.wright@example.com,Patient Rights,0,2023-04-15 CST,
+Michelle,,Lopez,michelle.lopez@example.com,Emergency Procedures,100,2023-05-01 CST,2023-05-20 CST
+Brandon,,Hill,brandon.hill@example.com,Emergency Procedures,100,2023-05-05 CST,2023-05-25 CST
+Sarah,Sarah,Johnson,sarah.johnson@example.com,CPR Training,100,2023-06-01 CST,2023-06-15 CST
+Michael,Mike,Chen,mike.chen@example.com,Fire Safety,100,2023-06-05 CST,2023-06-20 CST
+Emily,,Rodriguez,emily.rodriguez@example.com,HIPAA Compliance,100,2023-06-10 CST,2023-07-01 CST
+David,Dave,Thompson,dave.thompson@example.com,Patient Care Basics,100,2023-06-15 CST,2023-07-10 CST
+Jennifer,Jen,Martinez,jen.martinez@example.com,Medication Safety,100,2023-07-01 CST,2023-07-25 CST
+Robert,Bob,Anderson,robert.anderson@example.com,CPR Training,100,2024-03-01 CST,2024-03-15 CST
+Lisa,,Taylor,lisa.taylor@example.com,Fire Safety,100,2024-03-05 CST,2024-03-20 CST
+James,Jim,White,jim.white@example.com,HIPAA Compliance,100,2024-03-10 CST,2024-04-01 CST
+Maria,,Garcia,maria.garcia@example.com,Patient Care Basics,100,2024-03-15 CST,2024-04-10 CST
+Christopher,Chris,Lee,chris.lee@example.com,Medication Safety,100,2024-04-01 CST,2024-04-20 CST
+Amanda,,Harris,amanda.harris@example.com,Infection Control,100,2024-04-05 CST,2024-04-30 CST
+Matthew,Matt,Clark,matt.clark@example.com,Patient Rights,100,2024-04-10 CST,2024-05-01 CST
+Jessica,,Lewis,jessica.lewis@example.com,Emergency Procedures,100,2024-04-15 CST,2024-05-10 CST
+Daniel,Dan,Walker,dan.walker@example.com,Trauma 101 (2025 update),60,2024-05-01 CST,
+Ashley,,Hall,ashley.hall@example.com,CPR Training,100,2024-05-05 CST,2024-05-20 CST
+Nicole,,Scott,nicole.scott@example.com,Trauma 101,100,2022-01-10 CST,2022-02-01 CST
+Kevin,,Green,kevin.green@example.com,Trauma 101,100,2022-01-15 CST,2022-02-10 CST
+Rachel,,Adams,rachel.adams@example.com,CPR Training,100,2022-01-20 CST,2022-02-05 CST
+Steven,,Baker,steven.baker@example.com,Fire Safety,100,2022-02-01 CST,2022-02-20 CST
+Lauren,,Nelson,lauren.nelson@example.com,HIPAA Compliance,100,2022-02-05 CST,2022-03-01 CST
+Tyler,,Carter,tyler.carter@example.com,Patient Care Basics,100,2022-02-10 CST,2022-03-15 CST
+Megan,,Mitchell,megan.mitchell@example.com,Medication Safety,50,2022-02-15 CST,
+Justin,,Perez,justin.perez@example.com,Infection Control,100,2022-03-01 CST,2022-03-25 CST
+Amber,,Roberts,amber.roberts@example.com,Patient Rights,100,2022-03-05 CST,2022-04-01 CST
+Eric,,Turner,eric.turner@example.com,Emergency Procedures,100,2022-03-10 CST,2022-04-05 CST
+Kristin,,Phillips,kristin.phillips@example.com,Trauma 101,0,2022-03-15 CST,
+Brian,,Campbell,brian.campbell@example.com,CPR Training,100,2022-04-01 CST,2022-04-20 CST
+Heather,,Parker,heather.parker@example.com,Fire Safety,100,2022-04-05 CST,2022-04-25 CST
+Andrew,,Evans,andrew.evans@example.com,HIPAA Compliance,100,2022-04-10 CST,2022-05-01 CST
+Samantha,,Edwards,samantha.edwards@example.com,Patient Care Basics,100,2022-05-01 CST,2022-05-30 CST
