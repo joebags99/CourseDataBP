@@ -50,65 +50,100 @@ export function parseDate(dateStr) {
  */
 export function parseCSV(file) {
   return new Promise((resolve, reject) => {
+    // First, parse without headers to get all rows
     Papa.parse(file, {
-      header: true,
+      header: false,
       skipEmptyLines: true,
       delimiter: '', // Auto-detect delimiter (comma, tab, etc.)
-      transformHeader: (header) => {
-        // Normalize header names (trim whitespace too)
-        const trimmedHeader = header.trim();
-        const headerMap = {
-          'Legal Firstname': 'legalFirstname',
-          'Preferred Firstname': 'preferredFirstname',
-          'Lastname': 'lastname',
-          'Email': 'email',
-          'Course': 'course',
-          '% Completed': 'percentCompleted',
-          'Enrolled At': 'enrolledAt',
-          'Date Completed': 'dateCompleted'
-        };
-        return headerMap[trimmedHeader] || trimmedHeader;
-      },
       complete: (results) => {
         try {
           console.log('Total rows parsed:', results.data.length);
-          console.log('First 3 rows:', results.data.slice(0, 3));
+          console.log('First 10 rows:', results.data.slice(0, 10));
 
-          // Skip first 7 rows (metadata) - but first check if we have enough rows
-          if (results.data.length <= 7) {
-            reject(new Error('CSV file has too few rows. Expected at least 8 rows (7 metadata + 1 data).'));
+          // Find the header row by looking for "Legal Firstname" or "Email"
+          let headerRowIndex = -1;
+          for (let i = 0; i < Math.min(15, results.data.length); i++) {
+            const row = results.data[i];
+            // Check if this row contains the expected headers
+            if (row.some(cell =>
+              cell && (
+                cell.includes('Legal Firstname') ||
+                cell.includes('Email') ||
+                cell.includes('Course')
+              )
+            )) {
+              headerRowIndex = i;
+              console.log('Found header row at index:', i);
+              break;
+            }
+          }
+
+          if (headerRowIndex === -1) {
+            reject(new Error('Could not find header row in CSV file. Expected columns: Legal Firstname, Email, Course'));
             return;
           }
 
-          const dataRows = results.data.slice(7);
-          console.log('Data rows after skipping 7:', dataRows.length);
+          // Extract headers and normalize them
+          const headers = results.data[headerRowIndex].map(h => {
+            const trimmed = (h || '').trim().replace(/^"|"$/g, ''); // Remove quotes
+            const headerMap = {
+              'Legal Firstname': 'legalFirstname',
+              'Preferred Firstname': 'preferredFirstname',
+              'Lastname': 'lastname',
+              'Email': 'email',
+              'Course': 'course',
+              '% Completed': 'percentCompleted',
+              'Enrolled At': 'enrolledAt',
+              'Date Completed': 'dateCompleted'
+            };
+            return headerMap[trimmed] || trimmed;
+          });
+
+          console.log('Normalized headers:', headers);
+
+          // Get data rows (everything after header row)
+          const dataRows = results.data.slice(headerRowIndex + 1);
+          console.log('Data rows count:', dataRows.length);
           console.log('First data row:', dataRows[0]);
 
           // Transform and validate data
           const parsedData = dataRows
             .filter(row => {
-              // More lenient filtering - just check if row has any data
-              const hasEmail = row.email && row.email.trim() !== '';
-              const hasCourse = row.course && row.course.trim() !== '';
+              // Find email and course columns
+              const emailIdx = headers.indexOf('email');
+              const courseIdx = headers.indexOf('course');
+
+              if (emailIdx === -1 || courseIdx === -1) return false;
+
+              const hasEmail = row[emailIdx] && row[emailIdx].trim() !== '';
+              const hasCourse = row[courseIdx] && row[courseIdx].trim() !== '';
               return hasEmail && hasCourse;
             })
-            .map(row => ({
-              legalFirstname: row.legalFirstname || '',
-              preferredFirstname: row.preferredFirstname || '',
-              lastname: row.lastname || '',
-              email: row.email ? row.email.toLowerCase().trim() : '',
-              course: row.course ? row.course.trim() : '',
-              percentCompleted: parseFloat(row.percentCompleted) || 0,
-              enrolledAt: parseDate(row.enrolledAt),
-              dateCompleted: parseDate(row.dateCompleted),
-              // Calculate days to completion
-              daysToComplete: calculateDaysToComplete(
-                parseDate(row.enrolledAt),
-                parseDate(row.dateCompleted)
-              )
-            }));
+            .map(row => {
+              // Map row values to headers
+              const rowData = {};
+              headers.forEach((header, idx) => {
+                rowData[header] = row[idx] || '';
+              });
+
+              return {
+                legalFirstname: rowData.legalFirstname || '',
+                preferredFirstname: rowData.preferredFirstname || '',
+                lastname: rowData.lastname || '',
+                email: rowData.email ? rowData.email.toLowerCase().trim() : '',
+                course: rowData.course ? rowData.course.trim() : '',
+                percentCompleted: parseFloat(rowData.percentCompleted) || 0,
+                enrolledAt: parseDate(rowData.enrolledAt),
+                dateCompleted: parseDate(rowData.dateCompleted),
+                daysToComplete: calculateDaysToComplete(
+                  parseDate(rowData.enrolledAt),
+                  parseDate(rowData.dateCompleted)
+                )
+              };
+            });
 
           console.log('Parsed data count:', parsedData.length);
+          console.log('First parsed record:', parsedData[0]);
 
           if (parsedData.length === 0) {
             reject(new Error('No valid data found in CSV file. Please ensure the file has the correct format with Email and Course columns.'));
