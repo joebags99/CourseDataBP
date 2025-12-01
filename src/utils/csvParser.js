@@ -53,8 +53,10 @@ export function parseCSV(file) {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter: '', // Auto-detect delimiter (comma, tab, etc.)
       transformHeader: (header) => {
-        // Normalize header names
+        // Normalize header names (trim whitespace too)
+        const trimmedHeader = header.trim();
         const headerMap = {
           'Legal Firstname': 'legalFirstname',
           'Preferred Firstname': 'preferredFirstname',
@@ -65,16 +67,31 @@ export function parseCSV(file) {
           'Enrolled At': 'enrolledAt',
           'Date Completed': 'dateCompleted'
         };
-        return headerMap[header] || header;
+        return headerMap[trimmedHeader] || trimmedHeader;
       },
       complete: (results) => {
         try {
-          // Skip first 7 rows (metadata)
+          console.log('Total rows parsed:', results.data.length);
+          console.log('First 3 rows:', results.data.slice(0, 3));
+
+          // Skip first 7 rows (metadata) - but first check if we have enough rows
+          if (results.data.length <= 7) {
+            reject(new Error('CSV file has too few rows. Expected at least 8 rows (7 metadata + 1 data).'));
+            return;
+          }
+
           const dataRows = results.data.slice(7);
+          console.log('Data rows after skipping 7:', dataRows.length);
+          console.log('First data row:', dataRows[0]);
 
           // Transform and validate data
           const parsedData = dataRows
-            .filter(row => row.email && row.course) // Filter out invalid rows
+            .filter(row => {
+              // More lenient filtering - just check if row has any data
+              const hasEmail = row.email && row.email.trim() !== '';
+              const hasCourse = row.course && row.course.trim() !== '';
+              return hasEmail && hasCourse;
+            })
             .map(row => ({
               legalFirstname: row.legalFirstname || '',
               preferredFirstname: row.preferredFirstname || '',
@@ -91,12 +108,21 @@ export function parseCSV(file) {
               )
             }));
 
+          console.log('Parsed data count:', parsedData.length);
+
+          if (parsedData.length === 0) {
+            reject(new Error('No valid data found in CSV file. Please ensure the file has the correct format with Email and Course columns.'));
+            return;
+          }
+
           resolve(parsedData);
         } catch (error) {
+          console.error('Parse error:', error);
           reject(new Error(`Failed to parse CSV: ${error.message}`));
         }
       },
       error: (error) => {
+        console.error('Papa parse error:', error);
         reject(new Error(`CSV parsing error: ${error.message}`));
       }
     });
