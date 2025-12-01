@@ -4,7 +4,7 @@ import { getStaffCompletionData } from '../utils/analytics';
 import { exportToCSV } from '../utils/csvParser';
 import '../styles/StaffAnalysis.css';
 
-export default function StaffAnalysis({ data, courseGroups, groupVersions }) {
+export default function StaffAnalysis({ data, courseGroups, groupVersions, showRawNumbers }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [completionFilter, setCompletionFilter] = useState('all'); // 'all', 'completed', 'partial', 'notStarted'
   const [sortBy, setSortBy] = useState('name'); // 'name', 'completionRate', 'courses'
@@ -187,7 +187,11 @@ export default function StaffAnalysis({ data, courseGroups, groupVersions }) {
                           }}
                         />
                       </div>
-                      <span className="completion-percentage">{staff.completionRate}%</span>
+                      <span className="completion-percentage">
+                        {showRawNumbers
+                          ? `${staff.totalCompletions}/${staff.totalEnrollments}`
+                          : `${staff.completionRate}%`}
+                      </span>
                     </div>
                   </td>
                 </tr>

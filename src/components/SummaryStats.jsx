@@ -1,6 +1,6 @@
 import '../styles/SummaryStats.css';
 
-export default function SummaryStats({ stats }) {
+export default function SummaryStats({ stats, showRawNumbers }) {
   const statCards = [
     {
       label: 'Total Staff',
@@ -28,7 +28,9 @@ export default function SummaryStats({ stats }) {
     },
     {
       label: 'Completion Rate',
-      value: `${stats.overallCompletionRate}%`,
+      value: showRawNumbers
+        ? `${stats.totalCompletions}/${stats.totalEnrollments}`
+        : `${stats.overallCompletionRate}%`,
       icon: '📊',
       color: stats.overallCompletionRate >= 80 ? 'green' : stats.overallCompletionRate >= 60 ? 'yellow' : 'red'
     },

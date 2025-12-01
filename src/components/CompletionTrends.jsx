@@ -15,7 +15,7 @@ import { format } from 'date-fns';
 import { calculateMonthlyTrends, identifyLowCompletionCourses } from '../utils/analytics';
 import '../styles/CompletionTrends.css';
 
-export default function CompletionTrends({ data, courseGroups, groupVersions }) {
+export default function CompletionTrends({ data, courseGroups, groupVersions, showRawNumbers }) {
   const [selectedView, setSelectedView] = useState('overall'); // 'overall' or 'byCourse'
   const [selectedCourse, setSelectedCourse] = useState('');
 
@@ -213,7 +213,11 @@ export default function CompletionTrends({ data, courseGroups, groupVersions }) 
                               }}
                             />
                           </div>
-                          <span className="rate-text">{course.completionRate}%</span>
+                          <span className="rate-text">
+                            {showRawNumbers
+                              ? `${course.completions}/${course.enrollments}`
+                              : `${course.completionRate}%`}
+                          </span>
                         </div>
                       </td>
                       <td>

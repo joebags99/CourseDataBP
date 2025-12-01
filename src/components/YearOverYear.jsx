@@ -15,7 +15,7 @@ import { calculateYearOverYear } from '../utils/analytics';
 import { exportToCSV } from '../utils/csvParser';
 import '../styles/YearOverYear.css';
 
-export default function YearOverYear({ data, courseGroups, groupVersions }) {
+export default function YearOverYear({ data, courseGroups, groupVersions, showRawNumbers }) {
   const [selectedCourses, setSelectedCourses] = useState(new Set());
   const [chartType, setChartType] = useState('bar'); // 'bar' or 'line'
 
@@ -227,7 +227,9 @@ export default function YearOverYear({ data, courseGroups, groupVersions }) {
                                 <td>{stats.totalCompletions}</td>
                                 <td>
                                   <span className={`rate-badge ${getRateBadgeClass(stats.completionRate)}`}>
-                                    {stats.completionRate}%
+                                    {showRawNumbers
+                                      ? `${stats.totalCompletions}/${stats.totalEnrollments}`
+                                      : `${stats.completionRate}%`}
                                   </span>
                                 </td>
                                 <td>{stats.averageDaysToComplete || '-'}</td>

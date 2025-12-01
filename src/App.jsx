@@ -13,6 +13,7 @@ function App() {
   const [rawData, setRawData] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [groupVersions, setGroupVersions] = useState(true);
+  const [showRawNumbers, setShowRawNumbers] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [dateRange, setDateRange] = useState({ start: null, end: null });
 
@@ -98,6 +99,15 @@ function App() {
                 <span>Group Course Versions</span>
               </label>
 
+              <label className="toggle-control">
+                <input
+                  type="checkbox"
+                  checked={showRawNumbers}
+                  onChange={(e) => setShowRawNumbers(e.target.checked)}
+                />
+                <span>Show Raw Numbers</span>
+              </label>
+
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 className="icon-button"
@@ -137,7 +147,7 @@ function App() {
             <div className="content-area">
               {activeTab === 'overview' && (
                 <div className="tab-content">
-                  <SummaryStats stats={summaryStats} />
+                  <SummaryStats stats={summaryStats} showRawNumbers={showRawNumbers} />
 
                   <DataDisclaimer />
 
@@ -189,6 +199,7 @@ function App() {
                     data={filteredData}
                     courseGroups={courseGroups}
                     groupVersions={groupVersions}
+                    showRawNumbers={showRawNumbers}
                   />
                 </div>
               )}
@@ -199,6 +210,7 @@ function App() {
                     data={filteredData}
                     courseGroups={courseGroups}
                     groupVersions={groupVersions}
+                    showRawNumbers={showRawNumbers}
                   />
                 </div>
               )}
@@ -209,6 +221,7 @@ function App() {
                     data={filteredData}
                     courseGroups={courseGroups}
                     groupVersions={groupVersions}
+                    showRawNumbers={showRawNumbers}
                   />
                 </div>
               )}
