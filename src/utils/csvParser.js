@@ -51,10 +51,11 @@ export function parseDate(dateStr) {
 export function parseCSV(file) {
   return new Promise((resolve, reject) => {
     // First, parse without headers to get all rows
+    // Use comma as delimiter (UKG exports are CSV, not TSV)
     Papa.parse(file, {
       header: false,
       skipEmptyLines: true,
-      delimiter: '', // Auto-detect delimiter (comma, tab, etc.)
+      delimiter: ',', // Comma delimiter for CSV files
       complete: (results) => {
         try {
           console.log('Total rows parsed:', results.data.length);
@@ -84,7 +85,11 @@ export function parseCSV(file) {
           }
 
           // Extract headers and normalize them
-          const headers = results.data[headerRowIndex].map(h => {
+          const headerRow = results.data[headerRowIndex];
+          console.log('Raw header row:', headerRow);
+          console.log('Header row length:', headerRow.length);
+
+          const headers = headerRow.map(h => {
             const trimmed = (h || '').trim().replace(/^"|"$/g, ''); // Remove quotes
             const headerMap = {
               'Legal Firstname': 'legalFirstname',
@@ -100,6 +105,7 @@ export function parseCSV(file) {
           });
 
           console.log('Normalized headers:', headers);
+          console.log('Column count:', headers.length);
 
           // Get data rows (everything after header row)
           const dataRows = results.data.slice(headerRowIndex + 1);
