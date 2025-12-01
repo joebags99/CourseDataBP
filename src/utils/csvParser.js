@@ -101,7 +101,8 @@ export function parseCSV(file) {
               'Course': 'course',
               '% Completed': 'percentCompleted',
               'Enrolled At': 'enrolledAt',
-              'Date Completed': 'dateCompleted'
+              'Date Completed': 'dateCompleted',
+              'Last Hire Date': 'lastHireDate'
             };
             return headerMap[trimmed] || trimmed;
           });
@@ -143,6 +144,7 @@ export function parseCSV(file) {
                 percentCompleted: parseFloat(rowData.percentCompleted) || 0,
                 enrolledAt: parseDate(rowData.enrolledAt),
                 dateCompleted: parseDate(rowData.dateCompleted),
+                lastHireDate: parseDate(rowData.lastHireDate),
                 daysToComplete: calculateDaysToComplete(
                   parseDate(rowData.enrolledAt),
                   parseDate(rowData.dateCompleted)

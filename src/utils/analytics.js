@@ -24,6 +24,11 @@ export function calculateYearOverYear(data, courseGroups, groupVersions = true) 
     if (record.enrolledAt) {
       const enrollYear = getYear(record.enrolledAt);
 
+      // Filter out 2021 and 2022 data
+      if (enrollYear < 2023) {
+        return;
+      }
+
       if (!stats[courseName][enrollYear]) {
         stats[courseName][enrollYear] = {
           year: enrollYear,

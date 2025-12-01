@@ -4,6 +4,7 @@ import SummaryStats from './components/SummaryStats';
 import YearOverYear from './components/YearOverYear';
 import CompletionTrends from './components/CompletionTrends';
 import StaffAnalysis from './components/StaffAnalysis';
+import DataDisclaimer from './components/DataDisclaimer';
 import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './utils/courseGrouping';
 import { calculateSummaryStats, filterByDateRange } from './utils/analytics';
 import './styles/App.css';
@@ -137,6 +138,8 @@ function App() {
               {activeTab === 'overview' && (
                 <div className="tab-content">
                   <SummaryStats stats={summaryStats} />
+
+                  <DataDisclaimer />
 
                   <div className="data-info-card">
                     <h3>Loaded Data Information</h3>
