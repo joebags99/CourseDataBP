@@ -62,15 +62,17 @@ export function parseCSV(file) {
           console.log('First 10 rows:', results.data.slice(0, 10));
 
           // Find the header row by looking for "Legal Firstname" or "Email"
+          // Must have at least 5 columns to avoid title rows
           let headerRowIndex = -1;
           for (let i = 0; i < Math.min(15, results.data.length); i++) {
             const row = results.data[i];
-            // Check if this row contains the expected headers
-            if (row.some(cell =>
+            console.log(`Row ${i} has ${row.length} columns:`, row);
+
+            // Check if this row contains the expected headers AND has multiple columns
+            if (row.length >= 5 && row.some(cell =>
               cell && (
                 cell.includes('Legal Firstname') ||
-                cell.includes('Email') ||
-                cell.includes('Course')
+                cell.includes('Email')
               )
             )) {
               headerRowIndex = i;
