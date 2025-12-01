@@ -4,18 +4,17 @@
  */
 
 /**
- * Extract base course name by removing version indicators
+ * Extract base course name by removing version indicators and normalizing variations
  * @param {string} courseName - Full course name
  * @returns {string} Base course name
  */
 export function extractBaseCourse(courseName) {
   if (!courseName) return '';
 
-  // Remove common version patterns
   let baseName = courseName;
 
-  // Patterns to remove (in order of specificity)
-  const patterns = [
+  // Step 1: Remove version patterns (in order of specificity)
+  const versionPatterns = [
     /\s*\(\d{4}\s+update\)/gi,           // (2025 update)
     /\s*\(\d{4}\)/gi,                     // (2025)
     /\s*-\s*\d{4}\s+update/gi,           // - 2025 update
@@ -32,11 +31,45 @@ export function extractBaseCourse(courseName) {
     /\s*\d{4}\s*$/gi,                     // trailing year
   ];
 
-  patterns.forEach(pattern => {
+  versionPatterns.forEach(pattern => {
     baseName = baseName.replace(pattern, '');
   });
 
-  return baseName.trim();
+  // Step 2: Remove common course suffixes
+  const suffixPatterns = [
+    /\s+training$/gi,                     // "LGBTQIA+ Basics training" -> "LGBTQIA+ Basics"
+    /\s+course$/gi,                       // "First Aid course" -> "First Aid"
+    /\s+class$/gi,                        // "CPR class" -> "CPR"
+    /\s+workshop$/gi,                     // "Safety workshop" -> "Safety"
+    /\s+seminar$/gi,                      // "Leadership seminar" -> "Leadership"
+    /\s+certification$/gi,                // "CPR certification" -> "CPR"
+    /\s+program$/gi,                      // "Mentoring program" -> "Mentoring"
+  ];
+
+  suffixPatterns.forEach(pattern => {
+    baseName = baseName.replace(pattern, '');
+  });
+
+  // Step 3: Remove descriptive trailing text after common patterns
+  // "Meaningful connections foundations of trauma" -> "Meaningful connections"
+  const trailingDescriptors = [
+    /\s+(foundations?|fundamentals?|essentials?|introduction|intro|overview|advanced|intermediate|beginner)\s+.*/gi,
+    /\s+(part|module|section|chapter|level)\s+\d+.*/gi,
+  ];
+
+  trailingDescriptors.forEach(pattern => {
+    baseName = baseName.replace(pattern, '');
+  });
+
+  // Step 4: Normalize plural/singular for common words
+  // "connections" -> "connection", "basics" -> "basic"
+  baseName = baseName.replace(/\bconnections\b/gi, 'Connection');
+  baseName = baseName.replace(/\bconnection\b/gi, 'Connection');
+
+  // Step 5: Trim and normalize whitespace
+  baseName = baseName.trim().replace(/\s+/g, ' ');
+
+  return baseName;
 }
 
 /**
