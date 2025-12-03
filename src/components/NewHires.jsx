@@ -26,6 +26,7 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
   const [nonCompliantSearch, setNonCompliantSearch] = useState('');
   const [missingCourseFilter, setMissingCourseFilter] = useState('all');
   const [nonCompliantSort, setNonCompliantSort] = useState('days');
+  const [hireYearCutoff, setHireYearCutoff] = useState(null); // null = no filter
 
   // Debug: Check how many records have hire dates
   console.log('NewHires - Total records:', data.length);
@@ -35,36 +36,60 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
     console.log('NewHires - First hire date example:', recordsWithHireDate[0].lastHireDate);
   }
 
+  // Filter data by hire year cutoff
+  const filteredData = useMemo(() => {
+    if (!hireYearCutoff) {
+      return data; // No filter applied
+    }
+
+    return data.filter(record => {
+      if (!record.lastHireDate) {
+        return true; // Keep records without hire date
+      }
+      const hireYear = record.lastHireDate.getFullYear();
+      return hireYear >= hireYearCutoff;
+    });
+  }, [data, hireYearCutoff]);
+
+  // Count excluded records for display
+  const excludedCount = useMemo(() => {
+    if (!hireYearCutoff) return 0;
+    return data.filter(record => {
+      if (!record.lastHireDate) return false;
+      return record.lastHireDate.getFullYear() < hireYearCutoff;
+    }).length;
+  }, [data, hireYearCutoff]);
+
   // Recent hires within selected timeframe
   const recentHires = useMemo(
     () => {
-      const hires = getRecentHires(data, courseGroups, daysFilter);
+      const hires = getRecentHires(filteredData, courseGroups, daysFilter);
       console.log('NewHires - Recent hires found:', hires.length, 'for days filter:', daysFilter);
       return hires;
     },
-    [data, courseGroups, daysFilter]
+    [filteredData, courseGroups, daysFilter]
   );
 
   // Compliance statistics
   const complianceStats = useMemo(
     () => {
-      const stats = calculateOnboardingCompliance(data, courseGroups);
+      const stats = calculateOnboardingCompliance(filteredData, courseGroups);
       console.log('NewHires - Compliance stats:', stats);
       return stats;
     },
-    [data, courseGroups]
+    [filteredData, courseGroups]
   );
 
   // Cohort analysis
   const cohortData = useMemo(() => {
-    const cohorts = calculateCohortAnalysis(data, courseGroups);
+    const cohorts = calculateCohortAnalysis(filteredData, courseGroups);
     return Object.values(cohorts).sort((a, b) => a.year - b.year);
-  }, [data, courseGroups]);
+  }, [filteredData, courseGroups]);
 
   // Non-compliant staff
   const nonCompliantStaff = useMemo(
-    () => getNonCompliantStaff(data, courseGroups),
-    [data, courseGroups]
+    () => getNonCompliantStaff(filteredData, courseGroups),
+    [filteredData, courseGroups]
   );
 
   // Filtered and sorted non-compliant staff
@@ -145,6 +170,33 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
   return (
     <div className="new-hires">
       <h2>New Hire Onboarding & Compliance</h2>
+
+      {/* Hire Year Filter */}
+      <div className="hire-year-filter-section">
+        <div className="filter-header">
+          <label htmlFor="hire-year-cutoff">
+            <strong>Exclude staff hired before:</strong>
+          </label>
+          <select
+            id="hire-year-cutoff"
+            value={hireYearCutoff || ''}
+            onChange={(e) => setHireYearCutoff(e.target.value ? parseInt(e.target.value) : null)}
+            className="year-cutoff-select"
+          >
+            <option value="">No Filter (Show All)</option>
+            <option value="2000">2000</option>
+            <option value="2005">2005</option>
+            <option value="2010">2010</option>
+            <option value="2015">2015</option>
+            <option value="2020">2020</option>
+          </select>
+        </div>
+        {excludedCount > 0 && (
+          <div className="exclusion-notice">
+            ℹ️ Excluding {excludedCount} staff member{excludedCount !== 1 ? 's' : ''} hired before {hireYearCutoff}
+          </div>
+        )}
+      </div>
 
       {/* Compliance Summary */}
       <div className="compliance-summary">
