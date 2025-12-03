@@ -24,15 +24,31 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
   const [daysFilter, setDaysFilter] = useState(90);
   const [expandedStaff, setExpandedStaff] = useState(new Set());
 
+  // Debug: Check how many records have hire dates
+  console.log('NewHires - Total records:', data.length);
+  const recordsWithHireDate = data.filter(r => r.lastHireDate !== null);
+  console.log('NewHires - Records with hire date:', recordsWithHireDate.length);
+  if (recordsWithHireDate.length > 0) {
+    console.log('NewHires - First hire date example:', recordsWithHireDate[0].lastHireDate);
+  }
+
   // Recent hires within selected timeframe
   const recentHires = useMemo(
-    () => getRecentHires(data, courseGroups, daysFilter),
+    () => {
+      const hires = getRecentHires(data, courseGroups, daysFilter);
+      console.log('NewHires - Recent hires found:', hires.length, 'for days filter:', daysFilter);
+      return hires;
+    },
     [data, courseGroups, daysFilter]
   );
 
   // Compliance statistics
   const complianceStats = useMemo(
-    () => calculateOnboardingCompliance(data, courseGroups),
+    () => {
+      const stats = calculateOnboardingCompliance(data, courseGroups);
+      console.log('NewHires - Compliance stats:', stats);
+      return stats;
+    },
     [data, courseGroups]
   );
 

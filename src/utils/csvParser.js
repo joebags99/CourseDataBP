@@ -11,8 +11,8 @@ export function parseDate(dateStr) {
     return null;
   }
 
-  // Remove timezone abbreviations (CST, EST, etc.)
-  const cleanDateStr = dateStr.replace(/\s+(CST|EST|PST|MST|CDT|EDT|PDT|MDT)$/i, '').trim();
+  // Remove timezone abbreviations (CST, EST, UTC, etc.)
+  const cleanDateStr = dateStr.replace(/\s+(CST|EST|PST|MST|CDT|EDT|PDT|MDT|UTC|GMT)$/i, '').trim();
 
   // Try parsing as ISO date format (YYYY-MM-DD)
   const date = parse(cleanDateStr, 'yyyy-MM-dd', new Date());
