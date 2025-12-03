@@ -23,6 +23,9 @@ import '../styles/NewHires.css';
 export default function NewHires({ data, courseGroups, groupVersions, showRawNumbers }) {
   const [daysFilter, setDaysFilter] = useState(90);
   const [expandedStaff, setExpandedStaff] = useState(new Set());
+  const [nonCompliantSearch, setNonCompliantSearch] = useState('');
+  const [missingCourseFilter, setMissingCourseFilter] = useState('all');
+  const [nonCompliantSort, setNonCompliantSort] = useState('days');
 
   // Debug: Check how many records have hire dates
   console.log('NewHires - Total records:', data.length);
@@ -63,6 +66,45 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
     () => getNonCompliantStaff(data, courseGroups),
     [data, courseGroups]
   );
+
+  // Filtered and sorted non-compliant staff
+  const filteredNonCompliantStaff = useMemo(() => {
+    let filtered = [...nonCompliantStaff];
+
+    // Apply search filter
+    if (nonCompliantSearch.trim() !== '') {
+      const searchLower = nonCompliantSearch.toLowerCase();
+      filtered = filtered.filter(staff =>
+        staff.displayName.toLowerCase().includes(searchLower) ||
+        staff.email.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply missing course filter
+    if (missingCourseFilter !== 'all') {
+      filtered = filtered.filter(staff =>
+        staff.missingCourses.some(course =>
+          course.toLowerCase().includes(missingCourseFilter.toLowerCase())
+        )
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (nonCompliantSort) {
+        case 'name':
+          return a.displayName.localeCompare(b.displayName);
+        case 'days':
+          return b.daysSinceHire - a.daysSinceHire; // Most days first
+        case 'courses':
+          return b.missingCourses.length - a.missingCourses.length; // Most missing first
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [nonCompliantStaff, nonCompliantSearch, missingCourseFilter, nonCompliantSort]);
 
   const toggleExpanded = (email) => {
     const newExpanded = new Set(expandedStaff);
@@ -155,8 +197,41 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
             </button>
           </div>
 
-          <div className="alert-list">
-            {nonCompliantStaff.map(staff => (
+          <div className="filter-controls">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={nonCompliantSearch}
+              onChange={(e) => setNonCompliantSearch(e.target.value)}
+              className="search-input"
+            />
+            <select
+              value={missingCourseFilter}
+              onChange={(e) => setMissingCourseFilter(e.target.value)}
+              className="course-filter"
+            >
+              <option value="all">All Missing Courses</option>
+              <option value="trauma">Missing Trauma 101</option>
+              <option value="workplace">Missing Workplace Safety</option>
+            </select>
+            <select
+              value={nonCompliantSort}
+              onChange={(e) => setNonCompliantSort(e.target.value)}
+              className="sort-select"
+            >
+              <option value="days">Sort by Days (Most First)</option>
+              <option value="name">Sort by Name</option>
+              <option value="courses">Sort by Missing Courses</option>
+            </select>
+          </div>
+
+          {filteredNonCompliantStaff.length === 0 ? (
+            <div className="empty-state">
+              <p>No staff match the selected filters</p>
+            </div>
+          ) : (
+            <div className="alert-list">
+              {filteredNonCompliantStaff.map(staff => (
               <div key={staff.email} className="alert-card">
                 <div className="alert-header">
                   <div>
@@ -174,8 +249,9 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
                   <strong>Missing:</strong> {staff.missingCourses.join(', ')}
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
