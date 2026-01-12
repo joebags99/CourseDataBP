@@ -100,6 +100,7 @@ export function parseCSV(file) {
               'Email': 'email',
               'Course': 'course',
               '% Completed': 'percentCompleted',
+              'Supervisor': 'supervisor',
               'Enrolled At': 'enrolledAt',
               'Date Completed': 'dateCompleted',
               'Last Hire Date': 'lastHireDate'
@@ -142,6 +143,7 @@ export function parseCSV(file) {
                 email: rowData.email ? rowData.email.toLowerCase().trim() : '',
                 course: rowData.course ? rowData.course.trim() : '',
                 percentCompleted: parseFloat(rowData.percentCompleted) || 0,
+                supervisor: rowData.supervisor ? rowData.supervisor.trim() : '',
                 enrolledAt: parseDate(rowData.enrolledAt),
                 dateCompleted: parseDate(rowData.dateCompleted),
                 lastHireDate: parseDate(rowData.lastHireDate),
