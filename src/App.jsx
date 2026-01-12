@@ -5,6 +5,7 @@ import YearOverYear from './components/YearOverYear';
 import CompletionTrends from './components/CompletionTrends';
 import StaffAnalysis from './components/StaffAnalysis';
 import NewHires from './components/NewHires';
+import SupervisorReports from './components/SupervisorReports';
 import DataDisclaimer from './components/DataDisclaimer';
 import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './utils/courseGrouping';
 import { calculateSummaryStats, filterByDateRange } from './utils/analytics';
@@ -76,6 +77,7 @@ function App() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'newhires', label: 'New Hires', icon: '🎓' },
+    { id: 'supervisors', label: 'Supervisor Reports', icon: '👔' },
     { id: 'yoy', label: 'Year-over-Year', icon: '📈' },
     { id: 'trends', label: 'Trends', icon: '📉' },
     { id: 'staff', label: 'Staff Analysis', icon: '👥' }
@@ -202,6 +204,16 @@ function App() {
                     courseGroups={courseGroups}
                     groupVersions={groupVersions}
                     showRawNumbers={showRawNumbers}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'supervisors' && (
+                <div className="tab-content">
+                  <SupervisorReports
+                    data={filteredData}
+                    courseGroups={courseGroups}
+                    groupVersions={groupVersions}
                   />
                 </div>
               )}
