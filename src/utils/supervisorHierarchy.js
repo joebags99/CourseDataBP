@@ -1,6 +1,7 @@
 /**
  * Parse supervisor string from UKG data
  * Format: "Supervisor Name - ID" or "Supervisor1 - ID1, Supervisor2 - ID2"
+ * When someone is a manager, they appear as their own supervisor first, followed by their actual supervisor
  * @param {string} supervisorStr - Raw supervisor string from CSV
  * @returns {Array<{name: string, id: string}>} Array of supervisor objects
  */
@@ -28,31 +29,72 @@ export function parseSupervisors(supervisorStr) {
 }
 
 /**
+ * Normalize a name for matching (lowercase, remove extra spaces)
+ */
+function normalizeName(name) {
+  return name.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Check if an employee's name matches a supervisor name
+ */
+function namesMatch(employeeName, supervisorName) {
+  const empNorm = normalizeName(employeeName);
+  const supNorm = normalizeName(supervisorName);
+  return empNorm === supNorm;
+}
+
+/**
  * Build organizational hierarchy from raw data
+ * Handles the UKG pattern where managers list themselves as their own supervisor
  * @param {Array} rawData - Parsed CSV data with supervisor information
  * @returns {Object} Hierarchy data structure
  */
 export function buildHierarchy(rawData) {
-  // Create a map of email -> employee data
+  // Create a map of employee identifier -> employee data
+  // We'll use both email (if available) and name+ID for lookups
   const employeeMap = new Map();
+  const employeeByNameId = new Map(); // Map of "name-id" -> employee
+  const supervisorPlaceholders = new Map(); // Supervisors mentioned but not in data
 
-  // First pass: collect all unique employees
+  // First pass: collect all unique employees with course data
   rawData.forEach(record => {
     const email = record.email.toLowerCase();
+    const displayName = `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`;
+    const supervisors = parseSupervisors(record.supervisor);
+
+    // Filter out self-supervisor references
+    // If employee's name matches one of the supervisors, that's a self-reference (indicates they're a manager)
+    const actualSupervisors = supervisors.filter(sup => !namesMatch(displayName, sup.name));
+    const isSelfSupervisor = supervisors.length > actualSupervisors.length;
 
     if (!employeeMap.has(email)) {
-      const supervisors = parseSupervisors(record.supervisor);
-
-      employeeMap.set(email, {
+      const employee = {
         email,
         legalFirstname: record.legalFirstname,
         preferredFirstname: record.preferredFirstname,
         lastname: record.lastname,
-        displayName: `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`,
-        supervisors: supervisors, // Array of {name, id}
+        displayName,
+        supervisors: actualSupervisors, // Only actual supervisors, not self-references
+        isManager: isSelfSupervisor,
         directReports: new Set(),
         allReports: new Set(),
-        courses: []
+        courses: [],
+        hasData: true
+      };
+
+      employeeMap.set(email, employee);
+
+      // Also index by name for matching
+      const nameKey = normalizeName(displayName);
+      employeeByNameId.set(nameKey, employee);
+
+      // If they have a supervisor ID in the data, also index by that
+      supervisors.forEach(sup => {
+        if (namesMatch(displayName, sup.name)) {
+          const nameIdKey = `${normalizeName(sup.name)}-${sup.id}`;
+          employeeByNameId.set(nameIdKey, employee);
+        }
       });
     }
 
@@ -67,34 +109,69 @@ export function buildHierarchy(rawData) {
     });
   });
 
-  // Create a map of supervisor name -> Set of employee emails
-  const supervisorToEmployees = new Map();
+  // Second pass: Create placeholder entries for supervisors mentioned but not in the data
+  employeeMap.forEach((employee) => {
+    employee.supervisors.forEach(sup => {
+      const supNameNorm = normalizeName(sup.name);
+      const supNameIdKey = `${supNameNorm}-${sup.id}`;
 
-  employeeMap.forEach((employee, email) => {
-    if (employee.supervisors && employee.supervisors.length > 0) {
-      employee.supervisors.forEach(supervisor => {
-        const supervisorKey = supervisor.name.toLowerCase();
+      // Check if this supervisor exists in our employee map
+      const existingBySupervisorName = employeeByNameId.get(supNameNorm);
+      const existingByNameId = employeeByNameId.get(supNameIdKey);
 
-        if (!supervisorToEmployees.has(supervisorKey)) {
-          supervisorToEmployees.set(supervisorKey, new Set());
+      if (!existingBySupervisorName && !existingByNameId) {
+        // Supervisor doesn't exist in our data, create a placeholder
+        if (!supervisorPlaceholders.has(supNameIdKey)) {
+          // Generate a placeholder email from the name
+          const emailPart = sup.name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
+          const placeholderEmail = `${emailPart}@placeholder.local`;
+
+          const placeholder = {
+            email: placeholderEmail,
+            legalFirstname: sup.name.split(' ')[0] || '',
+            preferredFirstname: sup.name.split(' ')[0] || '',
+            lastname: sup.name.split(' ').slice(1).join(' ') || '',
+            displayName: sup.name,
+            supervisorId: sup.id,
+            supervisors: [],
+            isManager: true,
+            directReports: new Set(),
+            allReports: new Set(),
+            courses: [],
+            hasData: false, // This person has no course enrollment data
+            isPlaceholder: true
+          };
+
+          supervisorPlaceholders.set(supNameIdKey, placeholder);
+          employeeMap.set(placeholderEmail, placeholder);
+          employeeByNameId.set(supNameNorm, placeholder);
+          employeeByNameId.set(supNameIdKey, placeholder);
         }
-
-        supervisorToEmployees.get(supervisorKey).add(email);
-      });
-    }
+      }
+    });
   });
 
-  // Populate direct reports for each employee
-  employeeMap.forEach((employee, email) => {
-    const employeeKey = employee.displayName.toLowerCase();
+  // Third pass: Build supervisor -> employee relationships
+  employeeMap.forEach((employee) => {
+    employee.supervisors.forEach(sup => {
+      const supNameNorm = normalizeName(sup.name);
+      const supNameIdKey = `${supNameNorm}-${sup.id}`;
 
-    if (supervisorToEmployees.has(employeeKey)) {
-      employee.directReports = supervisorToEmployees.get(employeeKey);
-    }
+      // Find the supervisor (could be a real employee or a placeholder)
+      let supervisor = employeeByNameId.get(supNameIdKey);
+      if (!supervisor) {
+        supervisor = employeeByNameId.get(supNameNorm);
+      }
+
+      if (supervisor) {
+        // Add this employee as a direct report of the supervisor
+        supervisor.directReports.add(employee.email);
+      }
+    });
   });
 
-  // Build cascading reports recursively
-  function getCascadingReports(email, visited = new Set()) {
+  // Fourth pass: Build cascading reports recursively
+  function getCascadingReportsRecursive(email, visited = new Set()) {
     if (visited.has(email)) {
       return new Set(); // Prevent circular references
     }
@@ -110,7 +187,7 @@ export function buildHierarchy(rawData) {
 
     // Recursively get reports of reports
     employee.directReports.forEach(reportEmail => {
-      const subReports = getCascadingReports(reportEmail, visited);
+      const subReports = getCascadingReportsRecursive(reportEmail, visited);
       subReports.forEach(subEmail => allReports.add(subEmail));
     });
 
@@ -119,12 +196,13 @@ export function buildHierarchy(rawData) {
 
   // Populate all cascading reports
   employeeMap.forEach((employee, email) => {
-    employee.allReports = getCascadingReports(email);
+    employee.allReports = getCascadingReportsRecursive(email);
   });
 
   return {
     employeeMap,
-    supervisorToEmployees
+    employeeByNameId,
+    supervisorPlaceholders
   };
 }
 
@@ -178,7 +256,9 @@ export function getAllSupervisors(hierarchy) {
         email: employee.email,
         displayName: employee.displayName,
         directReportCount: employee.directReports.size,
-        totalReportCount: employee.allReports.size
+        totalReportCount: employee.allReports.size,
+        isPlaceholder: employee.isPlaceholder || false,
+        hasData: employee.hasData
       });
     }
   });
@@ -221,17 +301,20 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
       completionRate,
       courses: member.courses,
       supervisors: member.supervisors,
-      hasDirectReports: member.directReports && member.directReports.size > 0
+      hasDirectReports: member.directReports && member.directReports.size > 0,
+      hasData: member.hasData,
+      isPlaceholder: member.isPlaceholder || false
     };
   });
 
   // Sort by display name
   teamData.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-  // Calculate overall statistics
+  // Calculate overall statistics (only from members with data)
+  const membersWithData = teamData.filter(m => m.hasData);
   const totalTeamMembers = teamData.length;
-  const totalEnrollments = teamData.reduce((sum, member) => sum + member.totalCourses, 0);
-  const totalCompletions = teamData.reduce((sum, member) => sum + member.completedCourses, 0);
+  const totalEnrollments = membersWithData.reduce((sum, member) => sum + member.totalCourses, 0);
+  const totalCompletions = membersWithData.reduce((sum, member) => sum + member.completedCourses, 0);
   const overallCompletionRate = totalEnrollments > 0
     ? (totalCompletions / totalEnrollments * 100).toFixed(1)
     : 0;
@@ -239,7 +322,9 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
   return {
     supervisor: {
       email: supervisor.email,
-      displayName: supervisor.displayName
+      displayName: supervisor.displayName,
+      hasData: supervisor.hasData,
+      isPlaceholder: supervisor.isPlaceholder || false
     },
     cascading,
     teamMembers: teamData,
