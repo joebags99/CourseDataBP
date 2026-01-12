@@ -386,6 +386,40 @@
   color: #ca8a04;
 }
 
+.badge-no-data {
+  display: inline-block;
+  margin-left: var(--spacing-sm);
+  padding: 2px 6px;
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.no-data-indicator {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.placeholder-email {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.no-data-text {
+  color: var(--text-secondary);
+}
+
+.no-courses-message {
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .stats-grid {

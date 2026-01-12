@@ -57,15 +57,15 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   ];
 
   const teamRows = reportData.teamMembers.map(member => [
-    member.displayName,
+    member.displayName + (member.hasData ? '' : ' (No Course Data)'),
     member.legalFirstname,
     member.lastname,
-    member.email,
-    member.totalCourses,
-    member.completedCourses,
-    member.completionRate,
+    member.isPlaceholder ? 'N/A' : member.email,
+    member.hasData ? member.totalCourses : 'N/A',
+    member.hasData ? member.completedCourses : 'N/A',
+    member.hasData ? member.completionRate : 'N/A',
     member.hasDirectReports ? 'Yes' : 'No',
-    member.supervisors.map(s => s.name).join(', ')
+    member.supervisors.map(s => s.name).join(', ') || 'N/A'
   ]);
 
   const teamData = [teamHeaders, ...teamRows];
@@ -100,20 +100,31 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   const courseDetailsRows = [];
 
   reportData.teamMembers.forEach(member => {
-    member.courses.forEach(course => {
-      courseDetailsRows.push([
-        member.displayName,
-        member.email,
-        course.course,
-        course.percentCompleted,
-        course.enrolledAt ? new Date(course.enrolledAt).toLocaleDateString() : '',
-        course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-        course.daysToComplete || ''
-      ]);
-    });
+    if (member.hasData && member.courses.length > 0) {
+      member.courses.forEach(course => {
+        courseDetailsRows.push([
+          member.displayName,
+          member.email,
+          course.course,
+          course.percentCompleted,
+          course.enrolledAt ? new Date(course.enrolledAt).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+          course.daysToComplete || ''
+        ]);
+      });
+    }
   });
 
-  const courseDetailsData = [courseDetailsHeaders, ...courseDetailsRows];
+  let courseDetailsData;
+  if (courseDetailsRows.length === 0) {
+    courseDetailsData = [
+      courseDetailsHeaders,
+      ['No course enrollment data available for team members', '', '', '', '', '', '']
+    ];
+  } else {
+    courseDetailsData = [courseDetailsHeaders, ...courseDetailsRows];
+  }
+
   const courseDetailsSheet = XLSX.utils.aoa_to_sheet(courseDetailsData);
 
   // Set column widths for course details sheet

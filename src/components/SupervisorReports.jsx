@@ -219,69 +219,86 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
                         className={expandedMembers.has(member.email) ? 'expanded' : ''}
                       >
                         <td>
-                          <button
-                            className="expand-button"
-                            onClick={() => toggleMemberExpansion(member.email)}
-                            aria-label={expandedMembers.has(member.email) ? 'Collapse' : 'Expand'}
-                          >
-                            {expandedMembers.has(member.email) ? '▼' : '▶'}
-                          </button>
+                          {member.hasData && member.courses.length > 0 ? (
+                            <button
+                              className="expand-button"
+                              onClick={() => toggleMemberExpansion(member.email)}
+                              aria-label={expandedMembers.has(member.email) ? 'Collapse' : 'Expand'}
+                            >
+                              {expandedMembers.has(member.email) ? '▼' : '▶'}
+                            </button>
+                          ) : (
+                            <span className="no-data-indicator" title="No course enrollment data">—</span>
+                          )}
                         </td>
-                        <td className="name-cell">{member.displayName}</td>
-                        <td className="email-cell">{member.email}</td>
-                        <td className="number-cell">{member.totalCourses}</td>
-                        <td className="number-cell">{member.completedCourses}</td>
+                        <td className="name-cell">
+                          {member.displayName}
+                          {!member.hasData && <span className="badge-no-data" title="No course enrollment data">No Data</span>}
+                        </td>
+                        <td className="email-cell">
+                          {member.isPlaceholder ? <span className="placeholder-email" title="Email not available">—</span> : member.email}
+                        </td>
+                        <td className="number-cell">{member.hasData ? member.totalCourses : '—'}</td>
+                        <td className="number-cell">{member.hasData ? member.completedCourses : '—'}</td>
                         <td className="number-cell">
-                          <span className={`completion-badge completion-${getCompletionLevel(member.completionRate)}`}>
-                            {member.completionRate}%
-                          </span>
+                          {member.hasData ? (
+                            <span className={`completion-badge completion-${getCompletionLevel(member.completionRate)}`}>
+                              {member.completionRate}%
+                            </span>
+                          ) : (
+                            <span className="no-data-text">—</span>
+                          )}
                         </td>
                         <td className="center-cell">{member.hasDirectReports ? '✓' : ''}</td>
                         <td className="supervisor-cell">
-                          {member.supervisors.map(s => s.name).join(', ')}
+                          {member.supervisors.map(s => s.name).join(', ') || '—'}
                         </td>
                       </tr>
-                      {expandedMembers.has(member.email) && (
+                      {expandedMembers.has(member.email) && member.hasData && (
                         <tr className="detail-row">
                           <td colSpan="8">
                             <div className="course-details">
                               <h4>Courses for {member.displayName}</h4>
-                              <table className="course-table">
-                                <thead>
-                                  <tr>
-                                    <th>Course</th>
-                                    <th>% Completed</th>
-                                    <th>Enrolled At</th>
-                                    <th>Date Completed</th>
-                                    <th>Days to Complete</th>
-                                    <th>Status</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {member.courses.map((course, idx) => (
-                                    <tr key={idx}>
-                                      <td>{course.course}</td>
-                                      <td>{course.percentCompleted}%</td>
-                                      <td>
-                                        {course.enrolledAt
-                                          ? format(new Date(course.enrolledAt), 'yyyy-MM-dd')
-                                          : '—'}
-                                      </td>
-                                      <td>
-                                        {course.dateCompleted
-                                          ? format(new Date(course.dateCompleted), 'yyyy-MM-dd')
-                                          : '—'}
-                                      </td>
-                                      <td>{course.daysToComplete || '—'}</td>
-                                      <td>
-                                        <span className={`status-badge ${course.percentCompleted === 100 ? 'completed' : 'in-progress'}`}>
-                                          {course.percentCompleted === 100 ? 'Completed' : 'In Progress'}
-                                        </span>
-                                      </td>
+                              {member.courses.length > 0 ? (
+                                <table className="course-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Course</th>
+                                      <th>% Completed</th>
+                                      <th>Enrolled At</th>
+                                      <th>Date Completed</th>
+                                      <th>Days to Complete</th>
+                                      <th>Status</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {member.courses.map((course, idx) => (
+                                      <tr key={idx}>
+                                        <td>{course.course}</td>
+                                        <td>{course.percentCompleted}%</td>
+                                        <td>
+                                          {course.enrolledAt
+                                            ? format(new Date(course.enrolledAt), 'yyyy-MM-dd')
+                                            : '—'}
+                                        </td>
+                                        <td>
+                                          {course.dateCompleted
+                                            ? format(new Date(course.dateCompleted), 'yyyy-MM-dd')
+                                            : '—'}
+                                        </td>
+                                        <td>{course.daysToComplete || '—'}</td>
+                                        <td>
+                                          <span className={`status-badge ${course.percentCompleted === 100 ? 'completed' : 'in-progress'}`}>
+                                            {course.percentCompleted === 100 ? 'Completed' : 'In Progress'}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              ) : (
+                                <p className="no-courses-message">No course enrollments found.</p>
+                              )}
                             </div>
                           </td>
                         </tr>
