@@ -135,6 +135,7 @@ export function buildHierarchy(rawData) {
       percentCompleted: record.percentCompleted,
       enrolledAt: record.enrolledAt,
       dateCompleted: record.dateCompleted,
+      lastHireDate: record.lastHireDate,
       daysToComplete: record.daysToComplete
     });
   });

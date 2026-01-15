@@ -62,10 +62,9 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   // Headers for the detailed rows
   const detailHeaders = [
     'Name',
-    'Email',
     'Course',
     'Percent Completed',
-    'Enrolled At',
+    'Hire Date',
     'Date Completed',
     'Days to Complete',
     'Status'
@@ -79,10 +78,9 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
       member.courses.forEach((course, courseIndex) => {
         rows.push([
           courseIndex === 0 ? member.displayName : '', // Only show name on first course
-          courseIndex === 0 ? member.email : '', // Only show email on first course
           course.course,
           course.percentCompleted + '%',
-          course.enrolledAt ? new Date(course.enrolledAt).toLocaleDateString() : '',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
           course.daysToComplete || '',
           course.percentCompleted === 100 ? 'Completed' : 'In Progress'
@@ -92,7 +90,6 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
       // Member has no course data
       rows.push([
         member.displayName,
-        member.isPlaceholder ? 'N/A' : member.email,
         'No course enrollment data',
         '',
         '',
@@ -103,7 +100,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     }
 
     // Add blank row between members
-    rows.push(['', '', '', '', '', '', '', '']);
+    rows.push(['', '', '', '', '', '', '']);
   });
 
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
@@ -111,16 +108,75 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   // Set column widths
   detailSheet['!cols'] = [
     { wch: 25 }, // Name
-    { wch: 35 }, // Email
     { wch: 45 }, // Course
     { wch: 18 }, // Percent Completed
-    { wch: 15 }, // Enrolled At
+    { wch: 15 }, // Hire Date
     { wch: 15 }, // Date Completed
     { wch: 18 }, // Days to Complete
     { wch: 15 }  // Status
   ];
 
   XLSX.utils.book_append_sheet(workbook, detailSheet, 'Direct Reports & Courses');
+
+  // Add filterable list view sheet
+  const listRows = [];
+  const listHeaders = [
+    'Name',
+    'Email',
+    'Course',
+    'Percent Completed',
+    'Status',
+    'Hire Date',
+    'Date Completed',
+    'Days to Complete'
+  ];
+  listRows.push(listHeaders);
+
+  // Flat list of all team members and their courses
+  reportData.teamMembers.forEach(member => {
+    if (member.hasData && member.courses.length > 0) {
+      member.courses.forEach(course => {
+        listRows.push([
+          member.displayName,
+          member.isPlaceholder ? 'N/A' : member.email,
+          course.course,
+          course.percentCompleted + '%',
+          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+          course.daysToComplete || ''
+        ]);
+      });
+    } else {
+      listRows.push([
+        member.displayName,
+        member.isPlaceholder ? 'N/A' : member.email,
+        'No course enrollment data',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ]);
+    }
+  });
+
+  const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+  listSheet['!cols'] = [
+    { wch: 25 },
+    { wch: 35 },
+    { wch: 45 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 18 }
+  ];
+
+  // Enable autofilter for the list view
+  listSheet['!autofilter'] = { ref: `A1:H${listRows.length}` };
+
+  XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
   const excelFilename = `${filename}.xlsx`;
@@ -149,11 +205,10 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
   const headers = [
     'Supervisor',
     'Name',
-    'Email',
     'Role',
     'Course',
     'Percent Completed',
-    'Enrolled At',
+    'Hire Date',
     'Date Completed',
     'Days to Complete',
     'Status'
@@ -178,11 +233,10 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
         rows.push([
           supervisor.displayName, // Supervisor column
           courseIndex === 0 ? supervisor.displayName : '', // Name only on first row
-          courseIndex === 0 ? (supervisor.isPlaceholder ? 'N/A' : supervisor.email) : '', // Email only on first row
           courseIndex === 0 ? 'Supervisor' : '',
           course.course,
           course.percentCompleted + '%',
-          course.enrolledAt ? new Date(course.enrolledAt).toLocaleDateString() : '',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
           course.daysToComplete || '',
           course.percentCompleted === 100 ? 'Completed' : 'In Progress'
@@ -193,7 +247,6 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
       rows.push([
         supervisor.displayName,
         supervisor.displayName,
-        supervisor.isPlaceholder ? 'N/A' : supervisor.email,
         'Supervisor',
         'No course enrollment data',
         '',
@@ -205,7 +258,7 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
     }
 
     // Add blank row after supervisor
-    rows.push(['', '', '', '', '', '', '', '', '', '']);
+    rows.push(['', '', '', '', '', '', '', '', '']);
 
     // Get direct reports and sort by name
     const directReports = Array.from(supervisor.directReports)
@@ -220,11 +273,10 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
           rows.push([
             supervisor.displayName, // Supervisor column
             courseIndex === 0 ? report.displayName : '', // Name only on first row
-            courseIndex === 0 ? (report.isPlaceholder ? 'N/A' : report.email) : '', // Email only on first row
             courseIndex === 0 ? 'Direct Report' : '',
             course.course,
             course.percentCompleted + '%',
-            course.enrolledAt ? new Date(course.enrolledAt).toLocaleDateString() : '',
+            course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
             course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
             course.daysToComplete || '',
             course.percentCompleted === 100 ? 'Completed' : 'In Progress'
@@ -233,6 +285,119 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
       } else {
         // Direct report has no course data
         rows.push([
+          supervisor.displayName,
+          report.displayName,
+          'Direct Report',
+          'No course enrollment data',
+          '',
+          '',
+          '',
+          '',
+          ''
+        ]);
+      }
+
+      // Add blank row after each direct report
+      rows.push(['', '', '', '', '', '', '', '', '']);
+    });
+
+    // Add extra blank row between supervisor groups
+    rows.push(['', '', '', '', '', '', '', '', '']);
+  });
+
+  // Create the sheet
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Set column widths
+  sheet['!cols'] = [
+    { wch: 25 }, // Supervisor
+    { wch: 25 }, // Name
+    { wch: 15 }, // Role
+    { wch: 45 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Hire Date
+    { wch: 15 }, // Date Completed
+    { wch: 18 }, // Days to Complete
+    { wch: 15 }  // Status
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports & Courses');
+
+  // Add filterable list view sheet
+  const listRows = [];
+  const listHeaders = [
+    'Supervisor',
+    'Name',
+    'Email',
+    'Role',
+    'Course',
+    'Percent Completed',
+    'Status',
+    'Hire Date',
+    'Date Completed',
+    'Days to Complete'
+  ];
+  listRows.push(listHeaders);
+
+  // Flat list of all supervisors and their direct reports with courses
+  sortedSupervisors.forEach(supervisorInfo => {
+    const supervisor = hierarchy.employeeMap.get(supervisorInfo.email);
+    if (!supervisor) return;
+
+    // Add supervisor's courses
+    if (supervisor.hasData && supervisor.courses.length > 0) {
+      supervisor.courses.forEach(course => {
+        listRows.push([
+          supervisor.displayName,
+          supervisor.displayName,
+          supervisor.isPlaceholder ? 'N/A' : supervisor.email,
+          'Supervisor',
+          course.course,
+          course.percentCompleted + '%',
+          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+          course.daysToComplete || ''
+        ]);
+      });
+    } else {
+      listRows.push([
+        supervisor.displayName,
+        supervisor.displayName,
+        supervisor.isPlaceholder ? 'N/A' : supervisor.email,
+        'Supervisor',
+        'No course enrollment data',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ]);
+    }
+
+    // Add direct reports' courses
+    const directReports = Array.from(supervisor.directReports)
+      .map(email => hierarchy.employeeMap.get(email))
+      .filter(emp => emp !== undefined);
+
+    directReports.forEach(report => {
+      if (report.hasData && report.courses.length > 0) {
+        report.courses.forEach(course => {
+          listRows.push([
+            supervisor.displayName,
+            report.displayName,
+            report.isPlaceholder ? 'N/A' : report.email,
+            'Direct Report',
+            course.course,
+            course.percentCompleted + '%',
+            course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+            course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+            course.daysToComplete || ''
+          ]);
+        });
+      } else {
+        listRows.push([
           supervisor.displayName,
           report.displayName,
           report.isPlaceholder ? 'N/A' : report.email,
@@ -245,33 +410,27 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
           ''
         ]);
       }
-
-      // Add blank row after each direct report
-      rows.push(['', '', '', '', '', '', '', '', '', '']);
     });
-
-    // Add extra blank row between supervisor groups
-    rows.push(['', '', '', '', '', '', '', '', '', '']);
   });
 
-  // Create the sheet
-  const sheet = XLSX.utils.aoa_to_sheet(rows);
-
-  // Set column widths
-  sheet['!cols'] = [
-    { wch: 25 }, // Supervisor
-    { wch: 25 }, // Name
-    { wch: 35 }, // Email
-    { wch: 15 }, // Role
-    { wch: 45 }, // Course
-    { wch: 18 }, // Percent Completed
-    { wch: 15 }, // Enrolled At
-    { wch: 15 }, // Date Completed
-    { wch: 18 }, // Days to Complete
-    { wch: 15 }  // Status
+  const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+  listSheet['!cols'] = [
+    { wch: 25 },
+    { wch: 25 },
+    { wch: 35 },
+    { wch: 15 },
+    { wch: 45 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 18 }
   ];
 
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports & Courses');
+  // Enable autofilter for the list view
+  listSheet['!autofilter'] = { ref: `A1:J${listRows.length}` };
+
+  XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
   const excelFilename = `${filename}.xlsx`;
