@@ -121,18 +121,22 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const handleExportReport = () => {
     if (!supervisorReport) return;
 
-    // Always export direct reports only (not cascading)
-    const directReportData = getSupervisorReport(selectedSupervisor, hierarchy, false);
-    const filename = `supervisor-report-${supervisorReport.supervisor.displayName.replace(/\s+/g, '-')}-direct-reports`;
-    exportSupervisorReportToExcel(directReportData, filename);
+    // Export with current cascading setting and course filters applied
+    const filename = `supervisor-report-${supervisorReport.supervisor.displayName.replace(/\s+/g, '-')}-${cascading ? 'cascading' : 'direct'}`;
+    exportSupervisorReportToExcel(supervisorReport, filename);
   };
 
   const handleExportAllSupervisors = () => {
     if (!hierarchy || supervisors.length === 0) return;
 
-    // Export all supervisors with their direct reports grouped
+    // Generate filtered reports for all supervisors (always direct reports only)
+    const allReports = supervisors.map(sup => {
+      const report = getSupervisorReport(sup.email, hierarchy, false); // Direct reports only
+      return filterCourses(report);
+    });
+
     const filename = 'direct-reports-by-supervisor';
-    exportDirectReportsBySupervisor(hierarchy, supervisors, filename);
+    exportDirectReportsBySupervisor(allReports, filename);
   };
 
   if (!hierarchy) {

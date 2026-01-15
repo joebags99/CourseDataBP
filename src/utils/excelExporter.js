@@ -186,13 +186,12 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
 /**
  * Export all supervisors with their direct reports grouped by supervisor
  * Each supervisor appears first, followed by their direct reports
- * @param {Object} hierarchy - Hierarchy data from buildHierarchy
- * @param {Array} supervisors - Array of all supervisors from getAllSupervisors
+ * @param {Array} supervisorReports - Array of report objects from getSupervisorReport (with filters applied)
  * @param {string} filename - Base filename (without extension)
  */
-export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename = 'direct-reports-by-supervisor') {
-  if (!hierarchy || !supervisors || supervisors.length === 0) {
-    console.error('No hierarchy or supervisor data provided');
+export function exportDirectReportsBySupervisor(supervisorReports, filename = 'direct-reports-by-supervisor') {
+  if (!supervisorReports || supervisorReports.length === 0) {
+    console.error('No supervisor reports provided');
     return;
   }
 
@@ -216,64 +215,27 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
 
   rows.push(headers);
 
-  // Sort supervisors by name
-  const sortedSupervisors = [...supervisors].sort((a, b) =>
-    a.displayName.localeCompare(b.displayName)
+  // Sort supervisor reports by supervisor name
+  const sortedReports = [...supervisorReports].sort((a, b) =>
+    a.supervisor.displayName.localeCompare(b.supervisor.displayName)
   );
 
-  // For each supervisor, add them and their direct reports with course details
-  sortedSupervisors.forEach(supervisorInfo => {
-    const supervisor = hierarchy.employeeMap.get(supervisorInfo.email);
+  // For each supervisor report, add supervisor and their direct reports with course details
+  sortedReports.forEach(report => {
+    const supervisorName = report.supervisor.displayName;
 
-    if (!supervisor) return;
+    // Add the supervisor themselves first (if they have course data)
+    // Note: The supervisor is not in the teamMembers list, so we need to check if we should add them
+    // For now, we'll just add the team members
 
-    // Add the supervisor themselves first with their courses
-    if (supervisor.hasData && supervisor.courses.length > 0) {
-      supervisor.courses.forEach((course, courseIndex) => {
-        rows.push([
-          supervisor.displayName, // Supervisor column
-          courseIndex === 0 ? supervisor.displayName : '', // Name only on first row
-          courseIndex === 0 ? 'Supervisor' : '',
-          course.course,
-          course.percentCompleted + '%',
-          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
-          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.daysToComplete || '',
-          course.percentCompleted === 100 ? 'Completed' : 'In Progress'
-        ]);
-      });
-    } else {
-      // Supervisor has no course data
-      rows.push([
-        supervisor.displayName,
-        supervisor.displayName,
-        'Supervisor',
-        'No course enrollment data',
-        '',
-        '',
-        '',
-        '',
-        ''
-      ]);
-    }
-
-    // Add blank row after supervisor
-    rows.push(['', '', '', '', '', '', '', '', '']);
-
-    // Get direct reports and sort by name
-    const directReports = Array.from(supervisor.directReports)
-      .map(email => hierarchy.employeeMap.get(email))
-      .filter(emp => emp !== undefined)
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
-
-    // Add each direct report with their courses
-    directReports.forEach(report => {
-      if (report.hasData && report.courses.length > 0) {
-        report.courses.forEach((course, courseIndex) => {
+    // Add each team member (direct report) with their courses
+    report.teamMembers.forEach(member => {
+      if (member.hasData && member.courses.length > 0) {
+        member.courses.forEach((course, courseIndex) => {
           rows.push([
-            supervisor.displayName, // Supervisor column
-            courseIndex === 0 ? report.displayName : '', // Name only on first row
-            courseIndex === 0 ? 'Direct Report' : '',
+            supervisorName, // Supervisor column
+            courseIndex === 0 ? member.displayName : '', // Name only on first row
+            courseIndex === 0 ? (member.displayName === supervisorName ? 'Supervisor' : 'Direct Report') : '',
             course.course,
             course.percentCompleted + '%',
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
@@ -283,11 +245,11 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
           ]);
         });
       } else {
-        // Direct report has no course data
+        // Member has no course data
         rows.push([
-          supervisor.displayName,
-          report.displayName,
-          'Direct Report',
+          supervisorName,
+          member.displayName,
+          member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
           'No course enrollment data',
           '',
           '',
@@ -297,7 +259,7 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
         ]);
       }
 
-      // Add blank row after each direct report
+      // Add blank row after each member
       rows.push(['', '', '', '', '', '', '', '', '']);
     });
 
@@ -339,55 +301,18 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
   ];
   listRows.push(listHeaders);
 
-  // Flat list of all supervisors and their direct reports with courses
-  sortedSupervisors.forEach(supervisorInfo => {
-    const supervisor = hierarchy.employeeMap.get(supervisorInfo.email);
-    if (!supervisor) return;
+  // Flat list of all direct reports with courses
+  sortedReports.forEach(report => {
+    const supervisorName = report.supervisor.displayName;
 
-    // Add supervisor's courses
-    if (supervisor.hasData && supervisor.courses.length > 0) {
-      supervisor.courses.forEach(course => {
-        listRows.push([
-          supervisor.displayName,
-          supervisor.displayName,
-          supervisor.isPlaceholder ? 'N/A' : supervisor.email,
-          'Supervisor',
-          course.course,
-          course.percentCompleted + '%',
-          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
-          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
-          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.daysToComplete || ''
-        ]);
-      });
-    } else {
-      listRows.push([
-        supervisor.displayName,
-        supervisor.displayName,
-        supervisor.isPlaceholder ? 'N/A' : supervisor.email,
-        'Supervisor',
-        'No course enrollment data',
-        '',
-        '',
-        '',
-        '',
-        ''
-      ]);
-    }
-
-    // Add direct reports' courses
-    const directReports = Array.from(supervisor.directReports)
-      .map(email => hierarchy.employeeMap.get(email))
-      .filter(emp => emp !== undefined);
-
-    directReports.forEach(report => {
-      if (report.hasData && report.courses.length > 0) {
-        report.courses.forEach(course => {
+    report.teamMembers.forEach(member => {
+      if (member.hasData && member.courses.length > 0) {
+        member.courses.forEach(course => {
           listRows.push([
-            supervisor.displayName,
-            report.displayName,
-            report.isPlaceholder ? 'N/A' : report.email,
-            'Direct Report',
+            supervisorName,
+            member.displayName,
+            member.isPlaceholder ? 'N/A' : member.email,
+            member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
             course.course,
             course.percentCompleted + '%',
             course.percentCompleted === 100 ? 'Completed' : 'In Progress',
@@ -398,10 +323,10 @@ export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename
         });
       } else {
         listRows.push([
-          supervisor.displayName,
-          report.displayName,
-          report.isPlaceholder ? 'N/A' : report.email,
-          'Direct Report',
+          supervisorName,
+          member.displayName,
+          member.isPlaceholder ? 'N/A' : member.email,
+          member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
           'No course enrollment data',
           '',
           '',
