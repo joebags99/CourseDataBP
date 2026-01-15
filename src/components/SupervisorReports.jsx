@@ -61,8 +61,10 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const handleExportReport = () => {
     if (!supervisorReport) return;
 
-    const filename = `supervisor-report-${supervisorReport.supervisor.displayName.replace(/\s+/g, '-')}-${cascading ? 'cascading' : 'direct'}`;
-    exportSupervisorReportToExcel(supervisorReport, filename);
+    // Always export direct reports only (not cascading)
+    const directReportData = getSupervisorReport(selectedSupervisor, hierarchy, false);
+    const filename = `supervisor-report-${supervisorReport.supervisor.displayName.replace(/\s+/g, '-')}-direct-reports`;
+    exportSupervisorReportToExcel(directReportData, filename);
   };
 
   const handleExportAllSupervisors = () => {
