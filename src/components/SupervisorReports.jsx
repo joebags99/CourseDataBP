@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { buildHierarchy, getAllSupervisors, getSupervisorReport } from '../utils/supervisorHierarchy';
-import { exportSupervisorReportToExcel, exportAllSupervisorReportsToExcel } from '../utils/excelExporter';
+import { exportSupervisorReportToExcel, exportDirectReportsBySupervisor } from '../utils/excelExporter';
 import '../styles/SupervisorReports.css';
 
 export default function SupervisorReports({ data, courseGroups, groupVersions }) {
@@ -68,13 +68,9 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const handleExportAllSupervisors = () => {
     if (!hierarchy || supervisors.length === 0) return;
 
-    // Generate reports for all supervisors
-    const allReports = supervisors.map(sup =>
-      getSupervisorReport(sup.email, hierarchy, cascading)
-    );
-
-    const filename = `all-supervisors-report-${cascading ? 'cascading' : 'direct'}`;
-    exportAllSupervisorReportsToExcel(allReports, filename);
+    // Export all supervisors with their direct reports grouped
+    const filename = 'direct-reports-by-supervisor';
+    exportDirectReportsBySupervisor(hierarchy, supervisors, filename);
   };
 
   if (!hierarchy) {
@@ -146,8 +142,9 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
           <button
             onClick={handleExportAllSupervisors}
             className="export-button secondary"
+            title="Export all supervisors with their direct reports grouped by supervisor"
           >
-            📥 Export All Supervisors
+            📥 Export Direct Reports by Supervisor
           </button>
         </div>
       </div>

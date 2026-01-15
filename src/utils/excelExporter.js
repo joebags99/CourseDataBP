@@ -146,6 +146,127 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
 }
 
 /**
+ * Export all supervisors with their direct reports grouped by supervisor
+ * Each supervisor appears first, followed by their direct reports
+ * @param {Object} hierarchy - Hierarchy data from buildHierarchy
+ * @param {Array} supervisors - Array of all supervisors from getAllSupervisors
+ * @param {string} filename - Base filename (without extension)
+ */
+export function exportDirectReportsBySupervisor(hierarchy, supervisors, filename = 'direct-reports-by-supervisor') {
+  if (!hierarchy || !supervisors || supervisors.length === 0) {
+    console.error('No hierarchy or supervisor data provided');
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  // Build the data rows grouped by supervisor
+  const rows = [];
+
+  // Headers
+  const headers = [
+    'Supervisor',
+    'Display Name',
+    'Legal First Name',
+    'Last Name',
+    'Email',
+    'Total Courses',
+    'Completed Courses',
+    'Completion Rate (%)',
+    'Role',
+    'Has Direct Reports'
+  ];
+
+  rows.push(headers);
+
+  // Sort supervisors by name
+  const sortedSupervisors = [...supervisors].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName)
+  );
+
+  // For each supervisor, add them and their direct reports
+  sortedSupervisors.forEach(supervisorInfo => {
+    const supervisor = hierarchy.employeeMap.get(supervisorInfo.email);
+
+    if (!supervisor) return;
+
+    // Add the supervisor themselves first
+    const supTotalCourses = supervisor.courses.length;
+    const supCompletedCourses = supervisor.courses.filter(c => c.percentCompleted === 100).length;
+    const supCompletionRate = supTotalCourses > 0
+      ? (supCompletedCourses / supTotalCourses * 100).toFixed(1)
+      : '0.0';
+
+    rows.push([
+      supervisor.displayName, // Supervisor column (their own name)
+      supervisor.displayName,
+      supervisor.legalFirstname,
+      supervisor.lastname,
+      supervisor.isPlaceholder ? 'N/A' : supervisor.email,
+      supervisor.hasData ? supTotalCourses : 'N/A',
+      supervisor.hasData ? supCompletedCourses : 'N/A',
+      supervisor.hasData ? supCompletionRate : 'N/A',
+      'Supervisor',
+      supervisor.directReports.size > 0 ? 'Yes' : 'No'
+    ]);
+
+    // Get direct reports and sort by name
+    const directReports = Array.from(supervisor.directReports)
+      .map(email => hierarchy.employeeMap.get(email))
+      .filter(emp => emp !== undefined)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    // Add each direct report
+    directReports.forEach(report => {
+      const totalCourses = report.courses.length;
+      const completedCourses = report.courses.filter(c => c.percentCompleted === 100).length;
+      const completionRate = totalCourses > 0
+        ? (completedCourses / totalCourses * 100).toFixed(1)
+        : '0.0';
+
+      rows.push([
+        supervisor.displayName, // Supervisor column
+        report.displayName,
+        report.legalFirstname,
+        report.lastname,
+        report.isPlaceholder ? 'N/A' : report.email,
+        report.hasData ? totalCourses : 'N/A',
+        report.hasData ? completedCourses : 'N/A',
+        report.hasData ? completionRate : 'N/A',
+        'Direct Report',
+        report.directReports && report.directReports.size > 0 ? 'Yes' : 'No'
+      ]);
+    });
+
+    // Add a blank row between supervisor groups for readability
+    rows.push(['', '', '', '', '', '', '', '', '', '']);
+  });
+
+  // Create the sheet
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Set column widths
+  sheet['!cols'] = [
+    { wch: 25 }, // Supervisor
+    { wch: 25 }, // Display Name
+    { wch: 20 }, // Legal First Name
+    { wch: 20 }, // Last Name
+    { wch: 35 }, // Email
+    { wch: 15 }, // Total Courses
+    { wch: 18 }, // Completed Courses
+    { wch: 18 }, // Completion Rate
+    { wch: 15 }, // Role
+    { wch: 18 }  // Has Direct Reports
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports');
+
+  // Write the workbook to file
+  const excelFilename = `${filename}.xlsx`;
+  XLSX.writeFile(workbook, excelFilename);
+}
+
+/**
  * Export all supervisors' reports to Excel file (bulk export)
  * @param {Array} supervisorsReports - Array of report data objects
  * @param {string} filename - Base filename (without extension)
