@@ -1,4 +1,37 @@
 import * as XLSX from 'xlsx';
+import { formatCourseName, sortCoursesByPriority } from './courseConfig';
+
+/**
+ * Apply Excel styling to headers
+ * @param {Object} sheet - XLSX sheet object
+ * @param {string} range - Range of header cells (e.g., 'A1:F1')
+ */
+function styleHeaders(sheet, range) {
+  const cellRefs = XLSX.utils.decode_range(range);
+
+  for (let col = cellRefs.s.c; col <= cellRefs.e.c; col++) {
+    for (let row = cellRefs.s.r; row <= cellRefs.e.r; row++) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+      if (!sheet[cellRef]) continue;
+
+      sheet[cellRef].s = {
+        font: {
+          name: 'Poppins',
+          sz: 11,
+          bold: true,
+          color: { rgb: 'FFFFFF' }
+        },
+        fill: {
+          fgColor: { rgb: '0088FE' }
+        },
+        alignment: {
+          vertical: 'center',
+          horizontal: 'left'
+        }
+      };
+    }
+  }
+}
 
 /**
  * Export supervisor report to Excel file
@@ -64,9 +97,8 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     'Name',
     'Course',
     'Percent Completed',
-    'Hire Date',
+    'Date Hired',
     'Date Completed',
-    'Days to Complete',
     'Status'
   ];
   rows.push(detailHeaders);
@@ -74,15 +106,17 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   // For each team member, add their info and courses
   reportData.teamMembers.forEach((member, memberIndex) => {
     if (member.hasData && member.courses.length > 0) {
+      // Sort courses by priority (required first)
+      const sortedCourses = sortCoursesByPriority(member.courses);
+
       // Add each course as a row
-      member.courses.forEach((course, courseIndex) => {
+      sortedCourses.forEach((course, courseIndex) => {
         rows.push([
           courseIndex === 0 ? member.displayName : '', // Only show name on first course
-          course.course,
+          formatCourseName(course.course), // Add asterisk for required courses
           course.percentCompleted + '%',
           course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.daysToComplete || '',
           course.percentCompleted === 100 ? 'Completed' : 'In Progress'
         ]);
       });
@@ -94,27 +128,35 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
         '',
         '',
         '',
-        '',
         ''
       ]);
     }
 
     // Add blank row between members
-    rows.push(['', '', '', '', '', '', '']);
+    rows.push(['', '', '', '', '', '']);
   });
+
+  // Add legend for required courses
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
 
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
 
   // Set column widths
   detailSheet['!cols'] = [
     { wch: 25 }, // Name
-    { wch: 45 }, // Course
+    { wch: 50 }, // Course (wider for asterisk)
     { wch: 18 }, // Percent Completed
-    { wch: 15 }, // Hire Date
+    { wch: 15 }, // Date Hired
     { wch: 15 }, // Date Completed
-    { wch: 18 }, // Days to Complete
     { wch: 15 }  // Status
   ];
+
+  // Style the headers (row with column names)
+  const headerRowIndex = rows.findIndex(row => row[0] === 'Name');
+  if (headerRowIndex >= 0) {
+    styleHeaders(detailSheet, `A${headerRowIndex + 1}:F${headerRowIndex + 1}`);
+  }
 
   XLSX.utils.book_append_sheet(workbook, detailSheet, 'Direct Reports & Courses');
 
@@ -126,25 +168,26 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     'Course',
     'Percent Completed',
     'Status',
-    'Hire Date',
-    'Date Completed',
-    'Days to Complete'
+    'Date Hired',
+    'Date Completed'
   ];
   listRows.push(listHeaders);
 
   // Flat list of all team members and their courses
   reportData.teamMembers.forEach(member => {
     if (member.hasData && member.courses.length > 0) {
-      member.courses.forEach(course => {
+      // Sort courses by priority
+      const sortedCourses = sortCoursesByPriority(member.courses);
+
+      sortedCourses.forEach(course => {
         listRows.push([
           member.displayName,
           member.isPlaceholder ? 'N/A' : member.email,
-          course.course,
+          formatCourseName(course.course), // Add asterisk for required courses
           course.percentCompleted + '%',
           course.percentCompleted === 100 ? 'Completed' : 'In Progress',
           course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
-          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.daysToComplete || ''
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
         ]);
       });
     } else {
@@ -152,7 +195,6 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
         member.displayName,
         member.isPlaceholder ? 'N/A' : member.email,
         'No course enrollment data',
-        '',
         '',
         '',
         '',
@@ -165,16 +207,18 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   listSheet['!cols'] = [
     { wch: 25 },
     { wch: 35 },
-    { wch: 45 },
+    { wch: 50 },
     { wch: 18 },
     { wch: 15 },
     { wch: 15 },
-    { wch: 15 },
-    { wch: 18 }
+    { wch: 15 }
   ];
 
+  // Style the headers
+  styleHeaders(listSheet, 'A1:G1');
+
   // Enable autofilter for the list view
-  listSheet['!autofilter'] = { ref: `A1:H${listRows.length}` };
+  listSheet['!autofilter'] = { ref: `A1:G${listRows.length}` };
 
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
@@ -207,9 +251,8 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
     'Role',
     'Course',
     'Percent Completed',
-    'Hire Date',
+    'Date Hired',
     'Date Completed',
-    'Days to Complete',
     'Status'
   ];
 
@@ -224,23 +267,21 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   sortedReports.forEach(report => {
     const supervisorName = report.supervisor.displayName;
 
-    // Add the supervisor themselves first (if they have course data)
-    // Note: The supervisor is not in the teamMembers list, so we need to check if we should add them
-    // For now, we'll just add the team members
-
     // Add each team member (direct report) with their courses
     report.teamMembers.forEach(member => {
       if (member.hasData && member.courses.length > 0) {
-        member.courses.forEach((course, courseIndex) => {
+        // Sort courses by priority
+        const sortedCourses = sortCoursesByPriority(member.courses);
+
+        sortedCourses.forEach((course, courseIndex) => {
           rows.push([
             supervisorName, // Supervisor column
             courseIndex === 0 ? member.displayName : '', // Name only on first row
             courseIndex === 0 ? (member.displayName === supervisorName ? 'Supervisor' : 'Direct Report') : '',
-            course.course,
+            formatCourseName(course.course), // Add asterisk for required courses
             course.percentCompleted + '%',
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
             course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-            course.daysToComplete || '',
             course.percentCompleted === 100 ? 'Completed' : 'In Progress'
           ]);
         });
@@ -254,18 +295,21 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
           '',
           '',
           '',
-          '',
           ''
         ]);
       }
 
       // Add blank row after each member
-      rows.push(['', '', '', '', '', '', '', '', '']);
+      rows.push(['', '', '', '', '', '', '', '']);
     });
 
     // Add extra blank row between supervisor groups
-    rows.push(['', '', '', '', '', '', '', '', '']);
+    rows.push(['', '', '', '', '', '', '', '']);
   });
+
+  // Add legend for required courses
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
 
   // Create the sheet
   const sheet = XLSX.utils.aoa_to_sheet(rows);
@@ -277,11 +321,13 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
     { wch: 15 }, // Role
     { wch: 45 }, // Course
     { wch: 18 }, // Percent Completed
-    { wch: 15 }, // Hire Date
+    { wch: 15 }, // Date Hired
     { wch: 15 }, // Date Completed
-    { wch: 18 }, // Days to Complete
     { wch: 15 }  // Status
   ];
+
+  // Style the headers (first row)
+  styleHeaders(sheet, 'A1:H1');
 
   XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports & Courses');
 
@@ -295,9 +341,8 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
     'Course',
     'Percent Completed',
     'Status',
-    'Hire Date',
-    'Date Completed',
-    'Days to Complete'
+    'Date Hired',
+    'Date Completed'
   ];
   listRows.push(listHeaders);
 
@@ -307,18 +352,20 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
 
     report.teamMembers.forEach(member => {
       if (member.hasData && member.courses.length > 0) {
-        member.courses.forEach(course => {
+        // Sort courses by priority
+        const sortedCourses = sortCoursesByPriority(member.courses);
+
+        sortedCourses.forEach(course => {
           listRows.push([
             supervisorName,
             member.displayName,
             member.isPlaceholder ? 'N/A' : member.email,
             member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
-            course.course,
+            formatCourseName(course.course), // Add asterisk for required courses
             course.percentCompleted + '%',
             course.percentCompleted === 100 ? 'Completed' : 'In Progress',
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
-            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-            course.daysToComplete || ''
+            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
           ]);
         });
       } else {
@@ -331,7 +378,6 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
           '',
           '',
           '',
-          '',
           ''
         ]);
       }
@@ -340,20 +386,22 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
 
   const listSheet = XLSX.utils.aoa_to_sheet(listRows);
   listSheet['!cols'] = [
-    { wch: 25 },
-    { wch: 25 },
-    { wch: 35 },
-    { wch: 15 },
-    { wch: 45 },
-    { wch: 18 },
-    { wch: 15 },
-    { wch: 15 },
-    { wch: 15 },
-    { wch: 18 }
+    { wch: 25 }, // Supervisor
+    { wch: 25 }, // Name
+    { wch: 35 }, // Email
+    { wch: 15 }, // Role
+    { wch: 45 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Status
+    { wch: 15 }, // Date Hired
+    { wch: 15 }  // Date Completed
   ];
 
+  // Style the headers
+  styleHeaders(listSheet, 'A1:I1');
+
   // Enable autofilter for the list view
-  listSheet['!autofilter'] = { ref: `A1:J${listRows.length}` };
+  listSheet['!autofilter'] = { ref: `A1:I${listRows.length}` };
 
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
