@@ -57,7 +57,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     ['Email:', reportData.supervisor.email],
     ['Report Type:', reportData.cascading ? 'Cascading (All Reports)' : 'Direct Reports Only'],
     [''],
-    ['Was this report helpful?'],
+    ['Was this report helpful?', FEEDBACK_FORM_URL],
     [''],
     ['Team Statistics:'],
     ['Total Team Members:', reportData.statistics.totalTeamMembers],
@@ -71,24 +71,6 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-  summarySheet['B7'] = {
-    v: 'Yes',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  summarySheet['C7'] = {
-    v: 'No',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
 
   // Set column widths for summary sheet
   summarySheet['!cols'] = [
@@ -108,7 +90,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   rows.push(['']); // Blank row
 
   // Add feedback section
-  rows.push(['Was this report helpful?']);
+  rows.push(['Was this report helpful?', FEEDBACK_FORM_URL]);
   rows.push(['']); // Blank row
 
   // Get supervisor's own data from the hierarchy if available
@@ -167,25 +149,6 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   rows.push(['* Required/Compliance Course']);
 
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-
-  detailSheet['B4'] = {
-    v: 'Yes',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  detailSheet['C4'] = {
-    v: 'No',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
 
   // Set column widths
   detailSheet['!cols'] = [
@@ -292,7 +255,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Add feedback section at the top
   rows.push(['All Supervisors - Direct Reports Summary']);
   rows.push(['']);
-  rows.push(['Was this report helpful?']);
+  rows.push(['Was this report helpful?', FEEDBACK_FORM_URL]);
   rows.push(['']);
 
   // Headers
@@ -365,25 +328,6 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Create the sheet
   const sheet = XLSX.utils.aoa_to_sheet(rows);
 
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-
-  sheet['B4'] = {
-    v: 'Yes',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  sheet['C4'] = {
-    v: 'No',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-
   // Set column widths
   sheet['!cols'] = [
     { wch: 25 }, // Supervisor
@@ -407,7 +351,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Add feedback section
   listRows.push(['All Supervisors - List View']);
   listRows.push(['']);
-  listRows.push(['Was this report helpful?']);
+  listRows.push(['Was this report helpful?', FEEDBACK_FORM_URL]);
   listRows.push(['']);
 
   const listHeaders = [
@@ -462,24 +406,6 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   });
 
   const listSheet = XLSX.utils.aoa_to_sheet(listRows);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-  listSheet['B4'] = {
-    v: 'Yes',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  listSheet['C4'] = {
-    v: 'No',
-    l: { Target: FEEDBACK_FORM_URL },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
 
   listSheet['!cols'] = [
     { wch: 25 }, // Supervisor
