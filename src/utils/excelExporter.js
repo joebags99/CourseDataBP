@@ -55,6 +55,8 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     ['Email:', reportData.supervisor.email],
     ['Report Type:', reportData.cascading ? 'Cascading (All Reports)' : 'Direct Reports Only'],
     [''],
+    ['Was this report helpful?'],
+    [''],
     ['Team Statistics:'],
     ['Total Team Members:', reportData.statistics.totalTeamMembers],
     ['Direct Reports:', reportData.statistics.directReportCount],
@@ -67,6 +69,25 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+  summarySheet['B7'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  summarySheet['C7'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
 
   // Set column widths for summary sheet
   summarySheet['!cols'] = [
@@ -83,6 +104,10 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   const supervisor = reportData.supervisor;
   rows.push(['SUPERVISOR:', supervisor.displayName]);
   rows.push(['Email:', supervisor.isPlaceholder ? 'N/A' : supervisor.email]);
+  rows.push(['']); // Blank row
+
+  // Add feedback section
+  rows.push(['Was this report helpful?']);
   rows.push(['']); // Blank row
 
   // Get supervisor's own data from the hierarchy if available
@@ -141,6 +166,25 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   rows.push(['* Required/Compliance Course']);
 
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+  detailSheet['B4'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  detailSheet['C4'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
 
   // Set column widths
   detailSheet['!cols'] = [
@@ -244,6 +288,12 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Build the data rows grouped by supervisor with course details
   const rows = [];
 
+  // Add feedback section at the top
+  rows.push(['All Supervisors - Direct Reports Summary']);
+  rows.push(['']);
+  rows.push(['Was this report helpful?']);
+  rows.push(['']);
+
   // Headers
   const headers = [
     'Supervisor',
@@ -314,6 +364,25 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Create the sheet
   const sheet = XLSX.utils.aoa_to_sheet(rows);
 
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+  sheet['B4'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  sheet['C4'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+
   // Set column widths
   sheet['!cols'] = [
     { wch: 25 }, // Supervisor
@@ -326,13 +395,20 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
     { wch: 15 }  // Status
   ];
 
-  // Style the headers (first row)
-  styleHeaders(sheet, 'A1:H1');
+  // Style the headers (row 5 - after feedback section)
+  styleHeaders(sheet, 'A5:H5');
 
   XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports & Courses');
 
   // Add filterable list view sheet
   const listRows = [];
+
+  // Add feedback section
+  listRows.push(['All Supervisors - List View']);
+  listRows.push(['']);
+  listRows.push(['Was this report helpful?']);
+  listRows.push(['']);
+
   const listHeaders = [
     'Supervisor',
     'Name',
@@ -385,6 +461,25 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   });
 
   const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  listSheet['B4'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  listSheet['C4'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+
   listSheet['!cols'] = [
     { wch: 25 }, // Supervisor
     { wch: 25 }, // Name
@@ -397,11 +492,11 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
     { wch: 15 }  // Date Completed
   ];
 
-  // Style the headers
-  styleHeaders(listSheet, 'A1:I1');
+  // Style the headers (row 5 - after feedback section)
+  styleHeaders(listSheet, 'A5:I5');
 
-  // Enable autofilter for the list view
-  listSheet['!autofilter'] = { ref: `A1:I${listRows.length}` };
+  // Enable autofilter for the list view (starting from row 5)
+  listSheet['!autofilter'] = { ref: `A5:I${listRows.length}` };
 
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
