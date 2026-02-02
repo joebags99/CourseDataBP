@@ -9,8 +9,15 @@ const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
  * @param {string} row - 1-based row number (e.g., '7' for row 7)
  */
 function addFeedbackLinks(sheet, row) {
-  sheet[`B${row}`] = { t: 's', f: `HYPERLINK("${FEEDBACK_FORM_URL}","Yes")` };
-  sheet[`C${row}`] = { t: 's', f: `HYPERLINK("${FEEDBACK_FORM_URL}","No")` };
+  sheet[`B${row}`] = { t: 's', v: 'Yes', l: { Target: FEEDBACK_FORM_URL } };
+  sheet[`C${row}`] = { t: 's', v: 'No', l: { Target: FEEDBACK_FORM_URL } };
+
+  // Expand sheet range to include column C if needed
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  if (range.e.c < 2) {
+    range.e.c = 2;
+    sheet['!ref'] = XLSX.utils.encode_range(range);
+  }
 }
 
 /**
@@ -86,7 +93,8 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   // Set column widths for summary sheet
   summarySheet['!cols'] = [
     { wch: 30 },
-    { wch: 40 }
+    { wch: 40 },
+    { wch: 10 }
   ];
 
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
