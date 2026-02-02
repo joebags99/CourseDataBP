@@ -1,6 +1,8 @@
 import * as XLSX from 'xlsx';
 import { formatCourseName, sortCoursesByPriority } from './courseConfig';
 
+const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
+
 /**
  * Apply Excel styling to headers
  * @param {Object} sheet - XLSX sheet object
@@ -71,10 +73,9 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
 
   // Add hyperlinks for feedback (Yes/No both link to same form)
-  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
   summarySheet['B7'] = {
     v: 'Yes',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -82,7 +83,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   };
   summarySheet['C7'] = {
     v: 'No',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -168,10 +169,10 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
 
   // Add hyperlinks for feedback (Yes/No both link to same form)
-  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+
   detailSheet['B4'] = {
     v: 'Yes',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -179,7 +180,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   };
   detailSheet['C4'] = {
     v: 'No',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -365,10 +366,10 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   const sheet = XLSX.utils.aoa_to_sheet(rows);
 
   // Add hyperlinks for feedback (Yes/No both link to same form)
-  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+
   sheet['B4'] = {
     v: 'Yes',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -376,7 +377,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   };
   sheet['C4'] = {
     v: 'No',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -465,7 +466,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Add hyperlinks for feedback (Yes/No both link to same form)
   listSheet['B4'] = {
     v: 'Yes',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
@@ -473,7 +474,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   };
   listSheet['C4'] = {
     v: 'No',
-    l: { Target: feedbackFormUrl },
+    l: { Target: FEEDBACK_FORM_URL },
     s: {
       font: { color: { rgb: '0563C1' }, underline: true },
       alignment: { horizontal: 'left' }
