@@ -36,12 +36,42 @@ function normalizeName(name) {
 }
 
 /**
+ * Remove middle initials/names from a name for flexible matching
+ * "Kari N Daniel" -> "Kari Daniel"
+ * "John Q. Public" -> "John Public"
+ */
+function removeMiddleName(name) {
+  const normalized = normalizeName(name);
+  const parts = normalized.split(' ');
+
+  // If only 2 parts (first + last), return as-is
+  if (parts.length <= 2) {
+    return normalized;
+  }
+
+  // If 3+ parts, try removing middle parts (assume first and last are most important)
+  // Return first + last name
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
+/**
  * Check if an employee's name matches a supervisor name
+ * Handles middle initials/names by comparing with and without them
  */
 function namesMatch(employeeName, supervisorName) {
   const empNorm = normalizeName(employeeName);
   const supNorm = normalizeName(supervisorName);
-  return empNorm === supNorm;
+
+  // Direct match
+  if (empNorm === supNorm) {
+    return true;
+  }
+
+  // Try matching without middle names/initials
+  const empNoMiddle = removeMiddleName(employeeName);
+  const supNoMiddle = removeMiddleName(supervisorName);
+
+  return empNoMiddle === supNoMiddle;
 }
 
 /**
@@ -105,6 +135,7 @@ export function buildHierarchy(rawData) {
       percentCompleted: record.percentCompleted,
       enrolledAt: record.enrolledAt,
       dateCompleted: record.dateCompleted,
+      lastHireDate: record.lastHireDate,
       daysToComplete: record.daysToComplete
     });
   });
@@ -116,8 +147,21 @@ export function buildHierarchy(rawData) {
       const supNameIdKey = `${supNameNorm}-${sup.id}`;
 
       // Check if this supervisor exists in our employee map
-      const existingBySupervisorName = employeeByNameId.get(supNameNorm);
-      const existingByNameId = employeeByNameId.get(supNameIdKey);
+      let existingBySupervisorName = employeeByNameId.get(supNameNorm);
+      let existingByNameId = employeeByNameId.get(supNameIdKey);
+
+      // Try flexible matching if not found
+      if (!existingBySupervisorName && !existingByNameId) {
+        for (const [email, emp] of employeeMap) {
+          if (namesMatch(emp.displayName, sup.name)) {
+            existingBySupervisorName = emp;
+            // Cache this match
+            employeeByNameId.set(supNameNorm, emp);
+            employeeByNameId.set(supNameIdKey, emp);
+            break;
+          }
+        }
+      }
 
       if (!existingBySupervisorName && !existingByNameId) {
         // Supervisor doesn't exist in our data, create a placeholder
@@ -158,9 +202,26 @@ export function buildHierarchy(rawData) {
       const supNameIdKey = `${supNameNorm}-${sup.id}`;
 
       // Find the supervisor (could be a real employee or a placeholder)
+      // Try exact matches first
       let supervisor = employeeByNameId.get(supNameIdKey);
       if (!supervisor) {
         supervisor = employeeByNameId.get(supNameNorm);
+      }
+
+      // If still not found, try flexible matching (without middle names)
+      if (!supervisor) {
+        const supNoMiddle = removeMiddleName(sup.name);
+
+        // Search through all employees for a name match
+        for (const [email, emp] of employeeMap) {
+          if (namesMatch(emp.displayName, sup.name)) {
+            supervisor = emp;
+            // Cache this match for future lookups
+            employeeByNameId.set(supNameNorm, supervisor);
+            employeeByNameId.set(supNameIdKey, supervisor);
+            break;
+          }
+        }
       }
 
       if (supervisor) {

@@ -1,4 +1,37 @@
 import * as XLSX from 'xlsx';
+import { formatCourseName, sortCoursesByPriority } from './courseConfig';
+
+/**
+ * Apply Excel styling to headers
+ * @param {Object} sheet - XLSX sheet object
+ * @param {string} range - Range of header cells (e.g., 'A1:F1')
+ */
+function styleHeaders(sheet, range) {
+  const cellRefs = XLSX.utils.decode_range(range);
+
+  for (let col = cellRefs.s.c; col <= cellRefs.e.c; col++) {
+    for (let row = cellRefs.s.r; row <= cellRefs.e.r; row++) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+      if (!sheet[cellRef]) continue;
+
+      sheet[cellRef].s = {
+        font: {
+          name: 'Poppins',
+          sz: 11,
+          bold: true,
+          color: { rgb: 'FFFFFF' }
+        },
+        fill: {
+          fgColor: { rgb: '0088FE' }
+        },
+        alignment: {
+          vertical: 'center',
+          horizontal: 'left'
+        }
+      };
+    }
+  }
+}
 
 /**
  * Export supervisor report to Excel file
@@ -22,6 +55,8 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     ['Email:', reportData.supervisor.email],
     ['Report Type:', reportData.cascading ? 'Cascading (All Reports)' : 'Direct Reports Only'],
     [''],
+    ['Was this report helpful?'],
+    [''],
     ['Team Statistics:'],
     ['Total Team Members:', reportData.statistics.totalTeamMembers],
     ['Direct Reports:', reportData.statistics.directReportCount],
@@ -35,6 +70,25 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
 
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+  summarySheet['B7'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  summarySheet['C7'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+
   // Set column widths for summary sheet
   summarySheet['!cols'] = [
     { wch: 30 },
@@ -43,102 +97,408 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
 
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
-  // Team Members Sheet
-  const teamHeaders = [
-    'Display Name',
-    'Legal First Name',
-    'Last Name',
-    'Email',
-    'Total Courses',
-    'Completed Courses',
-    'Completion Rate (%)',
-    'Has Direct Reports',
-    'Immediate Supervisor(s)'
+  // Direct Reports with Courses Sheet (grouped by person)
+  const rows = [];
+
+  // Add supervisor first
+  const supervisor = reportData.supervisor;
+  rows.push(['SUPERVISOR:', supervisor.displayName]);
+  rows.push(['Email:', supervisor.isPlaceholder ? 'N/A' : supervisor.email]);
+  rows.push(['']); // Blank row
+
+  // Add feedback section
+  rows.push(['Was this report helpful?']);
+  rows.push(['']); // Blank row
+
+  // Get supervisor's own data from the hierarchy if available
+  // We need to find the supervisor in the team members or add them separately
+  // For now, just add the header for direct reports
+
+  rows.push(['DIRECT REPORTS AND THEIR COURSES:']);
+  rows.push(['']); // Blank row
+
+  // Headers for the detailed rows
+  const detailHeaders = [
+    'Name',
+    'Course',
+    'Percent Completed',
+    'Date Hired',
+    'Date Completed',
+    'Status'
+  ];
+  rows.push(detailHeaders);
+
+  // For each team member, add their info and courses
+  reportData.teamMembers.forEach((member, memberIndex) => {
+    if (member.hasData && member.courses.length > 0) {
+      // Sort courses by priority (required first)
+      const sortedCourses = sortCoursesByPriority(member.courses);
+
+      // Add each course as a row
+      sortedCourses.forEach((course, courseIndex) => {
+        rows.push([
+          courseIndex === 0 ? member.displayName : '', // Only show name on first course
+          formatCourseName(course.course), // Add asterisk for required courses
+          course.percentCompleted + '%',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+          course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+        ]);
+      });
+    } else {
+      // Member has no course data
+      rows.push([
+        member.displayName,
+        'No course enrollment data',
+        '',
+        '',
+        '',
+        ''
+      ]);
+    }
+
+    // Add blank row between members
+    rows.push(['', '', '', '', '', '']);
+  });
+
+  // Add legend for required courses
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
+
+  const detailSheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+  detailSheet['B4'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  detailSheet['C4'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+
+  // Set column widths
+  detailSheet['!cols'] = [
+    { wch: 25 }, // Name
+    { wch: 50 }, // Course (wider for asterisk)
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Date Hired
+    { wch: 15 }, // Date Completed
+    { wch: 15 }  // Status
   ];
 
-  const teamRows = reportData.teamMembers.map(member => [
-    member.displayName + (member.hasData ? '' : ' (No Course Data)'),
-    member.legalFirstname,
-    member.lastname,
-    member.isPlaceholder ? 'N/A' : member.email,
-    member.hasData ? member.totalCourses : 'N/A',
-    member.hasData ? member.completedCourses : 'N/A',
-    member.hasData ? member.completionRate : 'N/A',
-    member.hasDirectReports ? 'Yes' : 'No',
-    member.supervisors.map(s => s.name).join(', ') || 'N/A'
-  ]);
+  // Style the headers (row with column names)
+  const headerRowIndex = rows.findIndex(row => row[0] === 'Name');
+  if (headerRowIndex >= 0) {
+    styleHeaders(detailSheet, `A${headerRowIndex + 1}:F${headerRowIndex + 1}`);
+  }
 
-  const teamData = [teamHeaders, ...teamRows];
-  const teamSheet = XLSX.utils.aoa_to_sheet(teamData);
+  XLSX.utils.book_append_sheet(workbook, detailSheet, 'Direct Reports & Courses');
 
-  // Set column widths for team sheet
-  teamSheet['!cols'] = [
-    { wch: 25 }, // Display Name
-    { wch: 20 }, // Legal First Name
-    { wch: 20 }, // Last Name
-    { wch: 30 }, // Email
-    { wch: 15 }, // Total Courses
-    { wch: 18 }, // Completed Courses
-    { wch: 18 }, // Completion Rate
-    { wch: 18 }, // Has Direct Reports
-    { wch: 35 }  // Immediate Supervisor(s)
-  ];
-
-  XLSX.utils.book_append_sheet(workbook, teamSheet, 'Team Members');
-
-  // Course Details Sheet
-  const courseDetailsHeaders = [
-    'Display Name',
+  // Add filterable list view sheet
+  const listRows = [];
+  const listHeaders = [
+    'Name',
     'Email',
     'Course',
     'Percent Completed',
-    'Enrolled At',
-    'Date Completed',
-    'Days to Complete'
+    'Status',
+    'Date Hired',
+    'Date Completed'
   ];
+  listRows.push(listHeaders);
 
-  const courseDetailsRows = [];
-
+  // Flat list of all team members and their courses
   reportData.teamMembers.forEach(member => {
     if (member.hasData && member.courses.length > 0) {
-      member.courses.forEach(course => {
-        courseDetailsRows.push([
+      // Sort courses by priority
+      const sortedCourses = sortCoursesByPriority(member.courses);
+
+      sortedCourses.forEach(course => {
+        listRows.push([
           member.displayName,
-          member.email,
-          course.course,
-          course.percentCompleted,
-          course.enrolledAt ? new Date(course.enrolledAt).toLocaleDateString() : '',
-          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.daysToComplete || ''
+          member.isPlaceholder ? 'N/A' : member.email,
+          formatCourseName(course.course), // Add asterisk for required courses
+          course.percentCompleted + '%',
+          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
         ]);
       });
+    } else {
+      listRows.push([
+        member.displayName,
+        member.isPlaceholder ? 'N/A' : member.email,
+        'No course enrollment data',
+        '',
+        '',
+        '',
+        ''
+      ]);
     }
   });
 
-  let courseDetailsData;
-  if (courseDetailsRows.length === 0) {
-    courseDetailsData = [
-      courseDetailsHeaders,
-      ['No course enrollment data available for team members', '', '', '', '', '', '']
-    ];
-  } else {
-    courseDetailsData = [courseDetailsHeaders, ...courseDetailsRows];
-  }
-
-  const courseDetailsSheet = XLSX.utils.aoa_to_sheet(courseDetailsData);
-
-  // Set column widths for course details sheet
-  courseDetailsSheet['!cols'] = [
-    { wch: 25 }, // Display Name
-    { wch: 30 }, // Email
-    { wch: 40 }, // Course
-    { wch: 18 }, // Percent Completed
-    { wch: 15 }, // Enrolled At
-    { wch: 15 }, // Date Completed
-    { wch: 18 }  // Days to Complete
+  const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+  listSheet['!cols'] = [
+    { wch: 25 },
+    { wch: 35 },
+    { wch: 50 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 }
   ];
 
-  XLSX.utils.book_append_sheet(workbook, courseDetailsSheet, 'Course Details');
+  // Style the headers
+  styleHeaders(listSheet, 'A1:G1');
+
+  // Enable autofilter for the list view
+  listSheet['!autofilter'] = { ref: `A1:G${listRows.length}` };
+
+  XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
+
+  // Write the workbook to file
+  const excelFilename = `${filename}.xlsx`;
+  XLSX.writeFile(workbook, excelFilename);
+}
+
+/**
+ * Export all supervisors with their direct reports grouped by supervisor
+ * Each supervisor appears first, followed by their direct reports
+ * @param {Array} supervisorReports - Array of report objects from getSupervisorReport (with filters applied)
+ * @param {string} filename - Base filename (without extension)
+ */
+export function exportDirectReportsBySupervisor(supervisorReports, filename = 'direct-reports-by-supervisor') {
+  if (!supervisorReports || supervisorReports.length === 0) {
+    console.error('No supervisor reports provided');
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  // Build the data rows grouped by supervisor with course details
+  const rows = [];
+
+  // Add feedback section at the top
+  rows.push(['All Supervisors - Direct Reports Summary']);
+  rows.push(['']);
+  rows.push(['Was this report helpful?']);
+  rows.push(['']);
+
+  // Headers
+  const headers = [
+    'Supervisor',
+    'Name',
+    'Role',
+    'Course',
+    'Percent Completed',
+    'Date Hired',
+    'Date Completed',
+    'Status'
+  ];
+
+  rows.push(headers);
+
+  // Sort supervisor reports by supervisor name
+  const sortedReports = [...supervisorReports].sort((a, b) =>
+    a.supervisor.displayName.localeCompare(b.supervisor.displayName)
+  );
+
+  // For each supervisor report, add supervisor and their direct reports with course details
+  sortedReports.forEach(report => {
+    const supervisorName = report.supervisor.displayName;
+
+    // Add each team member (direct report) with their courses
+    report.teamMembers.forEach(member => {
+      if (member.hasData && member.courses.length > 0) {
+        // Sort courses by priority
+        const sortedCourses = sortCoursesByPriority(member.courses);
+
+        sortedCourses.forEach((course, courseIndex) => {
+          rows.push([
+            supervisorName, // Supervisor column
+            courseIndex === 0 ? member.displayName : '', // Name only on first row
+            courseIndex === 0 ? (member.displayName === supervisorName ? 'Supervisor' : 'Direct Report') : '',
+            formatCourseName(course.course), // Add asterisk for required courses
+            course.percentCompleted + '%',
+            course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+            course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+          ]);
+        });
+      } else {
+        // Member has no course data
+        rows.push([
+          supervisorName,
+          member.displayName,
+          member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
+          'No course enrollment data',
+          '',
+          '',
+          '',
+          ''
+        ]);
+      }
+
+      // Add blank row after each member
+      rows.push(['', '', '', '', '', '', '', '']);
+    });
+
+    // Add extra blank row between supervisor groups
+    rows.push(['', '', '', '', '', '', '', '']);
+  });
+
+  // Add legend for required courses
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
+
+  // Create the sheet
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
+  sheet['B4'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  sheet['C4'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+
+  // Set column widths
+  sheet['!cols'] = [
+    { wch: 25 }, // Supervisor
+    { wch: 25 }, // Name
+    { wch: 15 }, // Role
+    { wch: 45 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Date Hired
+    { wch: 15 }, // Date Completed
+    { wch: 15 }  // Status
+  ];
+
+  // Style the headers (row 5 - after feedback section)
+  styleHeaders(sheet, 'A5:H5');
+
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports & Courses');
+
+  // Add filterable list view sheet
+  const listRows = [];
+
+  // Add feedback section
+  listRows.push(['All Supervisors - List View']);
+  listRows.push(['']);
+  listRows.push(['Was this report helpful?']);
+  listRows.push(['']);
+
+  const listHeaders = [
+    'Supervisor',
+    'Name',
+    'Email',
+    'Role',
+    'Course',
+    'Percent Completed',
+    'Status',
+    'Date Hired',
+    'Date Completed'
+  ];
+  listRows.push(listHeaders);
+
+  // Flat list of all direct reports with courses
+  sortedReports.forEach(report => {
+    const supervisorName = report.supervisor.displayName;
+
+    report.teamMembers.forEach(member => {
+      if (member.hasData && member.courses.length > 0) {
+        // Sort courses by priority
+        const sortedCourses = sortCoursesByPriority(member.courses);
+
+        sortedCourses.forEach(course => {
+          listRows.push([
+            supervisorName,
+            member.displayName,
+            member.isPlaceholder ? 'N/A' : member.email,
+            member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
+            formatCourseName(course.course), // Add asterisk for required courses
+            course.percentCompleted + '%',
+            course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+            course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
+          ]);
+        });
+      } else {
+        listRows.push([
+          supervisorName,
+          member.displayName,
+          member.isPlaceholder ? 'N/A' : member.email,
+          member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
+          'No course enrollment data',
+          '',
+          '',
+          '',
+          ''
+        ]);
+      }
+    });
+  });
+
+  const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+
+  // Add hyperlinks for feedback (Yes/No both link to same form)
+  listSheet['B4'] = {
+    v: 'Yes',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+  listSheet['C4'] = {
+    v: 'No',
+    l: { Target: feedbackFormUrl },
+    s: {
+      font: { color: { rgb: '0563C1' }, underline: true },
+      alignment: { horizontal: 'left' }
+    }
+  };
+
+  listSheet['!cols'] = [
+    { wch: 25 }, // Supervisor
+    { wch: 25 }, // Name
+    { wch: 35 }, // Email
+    { wch: 15 }, // Role
+    { wch: 45 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Status
+    { wch: 15 }, // Date Hired
+    { wch: 15 }  // Date Completed
+  ];
+
+  // Style the headers (row 5 - after feedback section)
+  styleHeaders(listSheet, 'A5:I5');
+
+  // Enable autofilter for the list view (starting from row 5)
+  listSheet['!autofilter'] = { ref: `A5:I${listRows.length}` };
+
+  XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
   const excelFilename = `${filename}.xlsx`;

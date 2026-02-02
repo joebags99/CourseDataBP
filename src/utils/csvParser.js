@@ -148,7 +148,7 @@ export function parseCSV(file) {
                 dateCompleted: parseDate(rowData.dateCompleted),
                 lastHireDate: parseDate(rowData.lastHireDate),
                 daysToComplete: calculateDaysToComplete(
-                  parseDate(rowData.enrolledAt),
+                  parseDate(rowData.lastHireDate),
                   parseDate(rowData.dateCompleted)
                 )
               };
@@ -177,17 +177,17 @@ export function parseCSV(file) {
 }
 
 /**
- * Calculate days between enrollment and completion
- * @param {Date|null} enrolledDate
+ * Calculate days between hire date and completion
+ * @param {Date|null} hireDate
  * @param {Date|null} completedDate
  * @returns {number|null}
  */
-function calculateDaysToComplete(enrolledDate, completedDate) {
-  if (!enrolledDate || !completedDate) {
+function calculateDaysToComplete(hireDate, completedDate) {
+  if (!hireDate || !completedDate) {
     return null;
   }
 
-  const diffTime = Math.abs(completedDate - enrolledDate);
+  const diffTime = Math.abs(completedDate - hireDate);
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 }

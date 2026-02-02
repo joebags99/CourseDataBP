@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { buildHierarchy, getAllSupervisors, getSupervisorReport } from '../utils/supervisorHierarchy';
-import { exportSupervisorReportToExcel, exportAllSupervisorReportsToExcel } from '../utils/excelExporter';
+import { exportSupervisorReportToExcel, exportDirectReportsBySupervisor } from '../utils/excelExporter';
 import '../styles/SupervisorReports.css';
 
 export default function SupervisorReports({ data, courseGroups, groupVersions }) {
@@ -9,6 +9,8 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const [cascading, setCascading] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState(new Set());
   const [sortBy, setSortBy] = useState('name'); // 'name', 'completionRate', 'courses'
+  const [selectedCourses, setSelectedCourses] = useState([]); // Array of selected course names
+  const [showCourseFilter, setShowCourseFilter] = useState(false);
 
   // Build organizational hierarchy
   const hierarchy = useMemo(() => {
@@ -22,11 +24,51 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
     return getAllSupervisors(hierarchy);
   }, [hierarchy]);
 
+  // Get all unique courses for filtering
+  const allCourses = useMemo(() => {
+    if (!hierarchy) return [];
+    const coursesSet = new Set();
+    hierarchy.employeeMap.forEach(employee => {
+      employee.courses.forEach(course => {
+        coursesSet.add(course.course);
+      });
+    });
+    return Array.from(coursesSet).sort();
+  }, [hierarchy]);
+
+  // Initialize selectedCourses to all courses when hierarchy changes
+  useMemo(() => {
+    if (allCourses.length > 0 && selectedCourses.length === 0) {
+      setSelectedCourses(allCourses);
+    }
+  }, [allCourses]);
+
+  // Filter courses based on selection
+  const filterCourses = (reportData) => {
+    if (!reportData || selectedCourses.length === 0) return reportData;
+
+    return {
+      ...reportData,
+      teamMembers: reportData.teamMembers.map(member => ({
+        ...member,
+        courses: member.courses.filter(course => selectedCourses.includes(course.course)),
+        totalCourses: member.courses.filter(course => selectedCourses.includes(course.course)).length,
+        completedCourses: member.courses.filter(course => selectedCourses.includes(course.course) && course.percentCompleted === 100).length,
+        completionRate: (() => {
+          const filteredCourses = member.courses.filter(course => selectedCourses.includes(course.course));
+          const completedFiltered = filteredCourses.filter(c => c.percentCompleted === 100).length;
+          return filteredCourses.length > 0 ? (completedFiltered / filteredCourses.length * 100).toFixed(1) : 0;
+        })()
+      }))
+    };
+  };
+
   // Get selected supervisor's report
   const supervisorReport = useMemo(() => {
     if (!hierarchy || !selectedSupervisor) return null;
-    return getSupervisorReport(selectedSupervisor, hierarchy, cascading);
-  }, [hierarchy, selectedSupervisor, cascading]);
+    const report = getSupervisorReport(selectedSupervisor, hierarchy, cascading);
+    return filterCourses(report);
+  }, [hierarchy, selectedSupervisor, cascading, selectedCourses]);
 
   // Sort team members
   const sortedTeamMembers = useMemo(() => {
@@ -58,9 +100,28 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
     setExpandedMembers(newExpanded);
   };
 
+  const toggleCourseSelection = (courseName) => {
+    setSelectedCourses(prev => {
+      if (prev.includes(courseName)) {
+        return prev.filter(c => c !== courseName);
+      } else {
+        return [...prev, courseName];
+      }
+    });
+  };
+
+  const selectAllCourses = () => {
+    setSelectedCourses(allCourses);
+  };
+
+  const deselectAllCourses = () => {
+    setSelectedCourses([]);
+  };
+
   const handleExportReport = () => {
     if (!supervisorReport) return;
 
+    // Export with current cascading setting and course filters applied
     const filename = `supervisor-report-${supervisorReport.supervisor.displayName.replace(/\s+/g, '-')}-${cascading ? 'cascading' : 'direct'}`;
     exportSupervisorReportToExcel(supervisorReport, filename);
   };
@@ -68,13 +129,14 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const handleExportAllSupervisors = () => {
     if (!hierarchy || supervisors.length === 0) return;
 
-    // Generate reports for all supervisors
-    const allReports = supervisors.map(sup =>
-      getSupervisorReport(sup.email, hierarchy, cascading)
-    );
+    // Generate filtered reports for all supervisors (always direct reports only)
+    const allReports = supervisors.map(sup => {
+      const report = getSupervisorReport(sup.email, hierarchy, false); // Direct reports only
+      return filterCourses(report);
+    });
 
-    const filename = `all-supervisors-report-${cascading ? 'cascading' : 'direct'}`;
-    exportAllSupervisorReportsToExcel(allReports, filename);
+    const filename = 'direct-reports-by-supervisor';
+    exportDirectReportsBySupervisor(allReports, filename);
   };
 
   if (!hierarchy) {
@@ -135,6 +197,42 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
           </p>
         </div>
 
+        <div className="control-group">
+          <div className="course-filter-header">
+            <label>Filter Courses:</label>
+            <button
+              className="filter-toggle-button"
+              onClick={() => setShowCourseFilter(!showCourseFilter)}
+            >
+              {showCourseFilter ? '▼ Hide' : '▶ Show'} ({selectedCourses.length} of {allCourses.length} selected)
+            </button>
+          </div>
+          {showCourseFilter && (
+            <div className="course-filter-panel">
+              <div className="course-filter-actions">
+                <button className="filter-action-button" onClick={selectAllCourses}>
+                  Select All
+                </button>
+                <button className="filter-action-button" onClick={deselectAllCourses}>
+                  Deselect All
+                </button>
+              </div>
+              <div className="course-checkboxes">
+                {allCourses.map(course => (
+                  <label key={course} className="course-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={selectedCourses.includes(course)}
+                      onChange={() => toggleCourseSelection(course)}
+                    />
+                    <span>{course}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="export-buttons">
           <button
             onClick={handleExportReport}
@@ -146,8 +244,9 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
           <button
             onClick={handleExportAllSupervisors}
             className="export-button secondary"
+            title="Export all supervisors with their direct reports grouped by supervisor"
           >
-            📥 Export All Supervisors
+            📥 Export Direct Reports by Supervisor
           </button>
         </div>
       </div>
