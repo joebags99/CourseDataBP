@@ -4,6 +4,16 @@ import { formatCourseName, sortCoursesByPriority } from './courseConfig';
 const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
 
 /**
+ * Add clickable Yes/No feedback hyperlinks to a sheet row using HYPERLINK formula
+ * @param {Object} sheet - XLSX sheet object
+ * @param {string} row - 1-based row number (e.g., '7' for row 7)
+ */
+function addFeedbackLinks(sheet, row) {
+  sheet[`B${row}`] = { t: 's', f: `HYPERLINK("${FEEDBACK_FORM_URL}","Yes")` };
+  sheet[`C${row}`] = { t: 's', f: `HYPERLINK("${FEEDBACK_FORM_URL}","No")` };
+}
+
+/**
  * Apply Excel styling to headers
  * @param {Object} sheet - XLSX sheet object
  * @param {string} range - Range of header cells (e.g., 'A1:F1')
@@ -57,7 +67,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     ['Email:', reportData.supervisor.email],
     ['Report Type:', reportData.cascading ? 'Cascading (All Reports)' : 'Direct Reports Only'],
     [''],
-    ['Was this report helpful?', FEEDBACK_FORM_URL],
+    ['Was this report helpful?'],
     [''],
     ['Team Statistics:'],
     ['Total Team Members:', reportData.statistics.totalTeamMembers],
@@ -71,6 +81,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  addFeedbackLinks(summarySheet, 7);
 
   // Set column widths for summary sheet
   summarySheet['!cols'] = [
@@ -90,7 +101,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   rows.push(['']); // Blank row
 
   // Add feedback section
-  rows.push(['Was this report helpful?', FEEDBACK_FORM_URL]);
+  rows.push(['Was this report helpful?']);
   rows.push(['']); // Blank row
 
   // Get supervisor's own data from the hierarchy if available
@@ -149,6 +160,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   rows.push(['* Required/Compliance Course']);
 
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
+  addFeedbackLinks(detailSheet, 4);
 
   // Set column widths
   detailSheet['!cols'] = [
@@ -255,7 +267,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Add feedback section at the top
   rows.push(['All Supervisors - Direct Reports Summary']);
   rows.push(['']);
-  rows.push(['Was this report helpful?', FEEDBACK_FORM_URL]);
+  rows.push(['Was this report helpful?']);
   rows.push(['']);
 
   // Headers
@@ -327,6 +339,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
 
   // Create the sheet
   const sheet = XLSX.utils.aoa_to_sheet(rows);
+  addFeedbackLinks(sheet, 3);
 
   // Set column widths
   sheet['!cols'] = [
@@ -351,7 +364,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   // Add feedback section
   listRows.push(['All Supervisors - List View']);
   listRows.push(['']);
-  listRows.push(['Was this report helpful?', FEEDBACK_FORM_URL]);
+  listRows.push(['Was this report helpful?']);
   listRows.push(['']);
 
   const listHeaders = [
@@ -406,6 +419,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   });
 
   const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+  addFeedbackLinks(listSheet, 3);
 
   listSheet['!cols'] = [
     { wch: 25 }, // Supervisor
