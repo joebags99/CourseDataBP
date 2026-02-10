@@ -4,6 +4,24 @@ import { formatCourseName, sortCoursesByPriority } from './courseConfig';
 const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
 
 /**
+ * Get current date formatted as MMDDYYYY
+ */
+function getDateString() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${month}${day}${year}`;
+}
+
+/**
+ * Sanitize a name for use in filename (remove spaces and special chars)
+ */
+function sanitizeName(name) {
+  return name.replace(/[^a-zA-Z0-9]/g, '');
+}
+
+/**
  * Add clickable Yes/No feedback hyperlinks to a sheet row using HYPERLINK formula
  * @param {Object} sheet - XLSX sheet object
  * @param {string} row - 1-based row number (e.g., '7' for row 7)
@@ -251,7 +269,9 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const reportType = reportData.cascading ? 'Cascading' : 'DirectOnly';
+  const supervisorName = sanitizeName(reportData.supervisor.displayName);
+  const excelFilename = `TrainingReport_${supervisorName}_${getDateString()}_${reportType}.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
 
@@ -450,7 +470,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const excelFilename = `TrainingReport_AllSupervisors_${getDateString()}_DirectReports.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
 
@@ -515,7 +535,7 @@ export function exportAllSupervisorReportsToExcel(supervisorsReports, filename =
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const excelFilename = `TrainingReport_AllSupervisors_${getDateString()}_Summary.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
 
@@ -583,6 +603,6 @@ export function exportTeamRosterToExcel(allTeamMembers, filename = 'team-roster'
   XLSX.utils.book_append_sheet(workbook, sheet, 'Team Roster');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const excelFilename = `TrainingReport_Team_${getDateString()}_Roster.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
