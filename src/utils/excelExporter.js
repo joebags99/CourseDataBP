@@ -117,11 +117,67 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
 
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
+  // My Status Report Sheet (supervisor's own courses)
+  const myStatusRows = [];
+  const supervisor = reportData.supervisor;
+
+  myStatusRows.push(['MY STATUS REPORT']);
+  myStatusRows.push(['']);
+  myStatusRows.push(['Name:', supervisor.displayName]);
+  myStatusRows.push(['Email:', supervisor.isPlaceholder ? 'N/A' : supervisor.email]);
+  myStatusRows.push(['']);
+
+  // Headers for courses
+  const myStatusHeaders = [
+    'Course',
+    'Percent Completed',
+    'Date Hired',
+    'Date Completed',
+    'Status'
+  ];
+  myStatusRows.push(myStatusHeaders);
+
+  // Add supervisor's courses
+  if (supervisor.courses && supervisor.courses.length > 0) {
+    const sortedCourses = sortCoursesByPriority(supervisor.courses);
+
+    sortedCourses.forEach(course => {
+      myStatusRows.push([
+        formatCourseName(course.course),
+        course.percentCompleted + '%',
+        course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+        course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+        course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+      ]);
+    });
+  } else {
+    myStatusRows.push(['No course enrollment data', '', '', '', '']);
+  }
+
+  // Add legend
+  myStatusRows.push(['']);
+  myStatusRows.push(['* Required/Compliance Course']);
+
+  const myStatusSheet = XLSX.utils.aoa_to_sheet(myStatusRows);
+
+  // Set column widths
+  myStatusSheet['!cols'] = [
+    { wch: 50 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Date Hired
+    { wch: 15 }, // Date Completed
+    { wch: 15 }  // Status
+  ];
+
+  // Style the headers (row 6)
+  styleHeaders(myStatusSheet, 'A6:E6');
+
+  XLSX.utils.book_append_sheet(workbook, myStatusSheet, 'My Status Report');
+
   // Direct Reports with Courses Sheet (grouped by person)
   const rows = [];
 
   // Add supervisor first
-  const supervisor = reportData.supervisor;
   rows.push(['SUPERVISOR:', supervisor.displayName]);
   rows.push(['Email:', supervisor.isPlaceholder ? 'N/A' : supervisor.email]);
   rows.push(['']); // Blank row

@@ -385,7 +385,8 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
       email: supervisor.email,
       displayName: supervisor.displayName,
       hasData: supervisor.hasData,
-      isPlaceholder: supervisor.isPlaceholder || false
+      isPlaceholder: supervisor.isPlaceholder || false,
+      courses: supervisor.courses || []
     },
     cascading,
     teamMembers: teamData,
