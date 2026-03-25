@@ -347,6 +347,25 @@
   cursor: pointer;
 }
 
+.metric-note {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: rgba(0, 136, 254, 0.08);
+  border: 1px solid rgba(0, 136, 254, 0.25);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.metric-note strong {
+  color: var(--text-primary);
+}
+
+.metric-note--warning {
+  background: rgba(255, 187, 40, 0.08);
+  border-color: rgba(255, 187, 40, 0.35);
+}
+
 .by-course-layout {
   display: grid;
   grid-template-columns: 220px 1fr;

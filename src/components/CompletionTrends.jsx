@@ -18,6 +18,7 @@ import {
   calculateMonthlyTrends,
   identifyLowCompletionCourses,
   calculateCompletionRateTrends,
+  calculateCumulativeCoverage,
   calculatePeriodStats
 } from '../utils/analytics';
 import '../styles/CompletionTrends.css';
@@ -165,6 +166,8 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
   const [selectedCourses, setSelectedCourses] = useState(new Set());
   const [granularity, setGranularity] = useState('monthly');
   const [showOverallLine, setShowOverallLine] = useState(true);
+  // 'coverage' = cumulative workforce %, 'count' = raw monthly count, 'rate' = enrollment-based %
+  const [metricType, setMetricType] = useState('coverage');
 
   // ── Period Comparison state ──
   const [preset, setPreset] = useState('ytd');
@@ -179,6 +182,11 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
 
   const rateTrends = useMemo(
     () => calculateCompletionRateTrends(data, courseGroups, groupVersions),
+    [data, courseGroups, groupVersions]
+  );
+
+  const coverageData = useMemo(
+    () => calculateCumulativeCoverage(data, courseGroups, groupVersions),
     [data, courseGroups, groupVersions]
   );
 
@@ -252,10 +260,56 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
     [rateTrends, granularity]
   );
 
+  // Coverage series bucketed by granularity — for cumulative data we take the
+  // last month of each period so the value reflects end-of-period coverage.
+  const coverageAggregated = useMemo(() => {
+    const series = coverageData.seriesByMonth;
+    if (granularity === 'monthly') return series;
+
+    const buckets = {};
+    series.forEach(item => {
+      const key = granularity === 'quarterly'
+        ? `${getYear(item.date)}-Q${getQuarter(item.date)}`
+        : String(getYear(item.date));
+      // Overwrite — last month of each period wins (largest cumulative value)
+      buckets[key] = item;
+    });
+
+    return Object.entries(buckets)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => ({
+        ...item,
+        label: granularity === 'quarterly'
+          ? `Q${getQuarter(item.date)} ${getYear(item.date)}`
+          : String(getYear(item.date))
+      }));
+  }, [coverageData, granularity]);
+
   const byCourseChartData = useMemo(() => {
+    if (metricType === 'coverage') {
+      return coverageAggregated.map(item => {
+        const point = { label: item.label };
+        selectedCourses.forEach(course => {
+          point[course] = item.courses[course]?.coverageRate ?? null;
+        });
+        return point;
+      });
+    }
+
+    if (metricType === 'count') {
+      return aggregated.map(item => {
+        const point = { label: item.label || format(item.date, 'MMM yyyy') };
+        selectedCourses.forEach(course => {
+          point[course] = item.courses[course]?.completions ?? null;
+        });
+        return point;
+      });
+    }
+
+    // metricType === 'rate' (enrollment-based)
     return aggregated.map(item => {
       const point = {
-        label: item.label || format(item.date, granularity === 'monthly' ? 'MMM yyyy' : 'yyyy'),
+        label: item.label || format(item.date, 'MMM yyyy'),
         ...(showOverallLine ? { Overall: item.completionRate } : {})
       };
       selectedCourses.forEach(course => {
@@ -263,7 +317,7 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
       });
       return point;
     });
-  }, [aggregated, selectedCourses, showOverallLine, granularity]);
+  }, [aggregated, coverageAggregated, selectedCourses, metricType, showOverallLine, granularity]);
 
   const toggleCourse = (course) => {
     const next = new Set(selectedCourses);
@@ -480,6 +534,33 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
         <div className="by-course-view">
           <div className="by-course-controls">
             <div className="control-group">
+              <label>Metric</label>
+              <div className="button-group">
+                <button
+                  className={`group-btn ${metricType === 'coverage' ? 'active' : ''}`}
+                  onClick={() => setMetricType('coverage')}
+                  title="Cumulative % of all employees who have ever completed — consistent across enrollment policy changes"
+                >
+                  Workforce Coverage
+                </button>
+                <button
+                  className={`group-btn ${metricType === 'count' ? 'active' : ''}`}
+                  onClick={() => setMetricType('count')}
+                  title="Raw completion counts per period — no percentage math, no denominator bias"
+                >
+                  Monthly Count
+                </button>
+                <button
+                  className={`group-btn ${metricType === 'rate' ? 'active' : ''}`}
+                  onClick={() => setMetricType('rate')}
+                  title="Completions ÷ enrollments — unreliable before 2025 when enrollment was self-directed"
+                >
+                  Enrollment Rate
+                </button>
+              </div>
+            </div>
+
+            <div className="control-group">
               <label>Granularity</label>
               <div className="button-group">
                 {['monthly', 'quarterly', 'yearly'].map(g => (
@@ -494,15 +575,30 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
               </div>
             </div>
 
-            <label className="toggle-inline">
-              <input
-                type="checkbox"
-                checked={showOverallLine}
-                onChange={(e) => setShowOverallLine(e.target.checked)}
-              />
-              Show overall line
-            </label>
+            {metricType === 'rate' && (
+              <label className="toggle-inline">
+                <input
+                  type="checkbox"
+                  checked={showOverallLine}
+                  onChange={(e) => setShowOverallLine(e.target.checked)}
+                />
+                Show overall line
+              </label>
+            )}
           </div>
+
+          {metricType === 'coverage' && (
+            <div className="metric-note">
+              Cumulative % of <strong>{coverageData.totalEmployees} employees</strong> (all unique emails in this dataset) who have ever completed each course.
+              Pre-enrollment-policy data is included — this metric is consistent across all years.
+            </div>
+          )}
+          {metricType === 'rate' && (
+            <div className="metric-note metric-note--warning">
+              Enrollment-based rate: completions ÷ enrollments per period.
+              Before 2025, enrollment was self-directed — only motivated employees enrolled, making those rates appear artificially high and not comparable to 2025+ data.
+            </div>
+          )}
 
           <div className="by-course-layout">
             <div className="course-selector-panel">
@@ -549,10 +645,26 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
                     <LineChart data={byCourseChartData} margin={{ right: 16 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="label" angle={-35} textAnchor="end" height={70} tick={{ fontSize: 12 }} />
-                      <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} width={45} />
-                      <Tooltip formatter={(val) => val !== null ? `${val}%` : 'No data'} />
+                      <YAxis
+                        domain={metricType === 'count' ? [0, 'auto'] : [0, 100]}
+                        tickFormatter={metricType === 'count' ? v => v : v => `${v}%`}
+                        width={metricType === 'count' ? 40 : 45}
+                        label={metricType === 'coverage'
+                          ? { value: '% of workforce', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11 } }
+                          : metricType === 'count'
+                          ? { value: 'completions', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11 } }
+                          : undefined
+                        }
+                      />
+                      <Tooltip
+                        formatter={(val, name) => {
+                          if (val === null) return ['No data', name];
+                          if (metricType === 'count') return [val, name];
+                          return [`${val}%`, name];
+                        }}
+                      />
                       <Legend />
-                      {showOverallLine && (
+                      {metricType === 'rate' && showOverallLine && (
                         <Line
                           key="Overall"
                           type="monotone"
@@ -584,13 +696,65 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
                         <thead>
                           <tr>
                             <th>Course</th>
-                            <th>Avg Completion Rate</th>
-                            <th>Latest Period</th>
-                            <th>Trend</th>
+                            {metricType === 'coverage' && <>
+                              <th>Overall Coverage</th>
+                              <th>Employees Completed</th>
+                              <th>Not Yet Completed</th>
+                            </>}
+                            {metricType === 'count' && <>
+                              <th>Total Completions</th>
+                              <th>Avg / Month</th>
+                              <th>Trend</th>
+                            </>}
+                            {metricType === 'rate' && <>
+                              <th>Avg Rate</th>
+                              <th>Latest Period</th>
+                              <th>Trend</th>
+                            </>}
                           </tr>
                         </thead>
                         <tbody>
                           {Array.from(selectedCourses).map((course, i) => {
+                            if (metricType === 'coverage') {
+                              const stats = coverageData.courseStats[course];
+                              const completed = stats?.totalCompleters ?? 0;
+                              const missing = coverageData.totalEmployees - completed;
+                              return (
+                                <tr key={course}>
+                                  <td>
+                                    <span className="course-color-dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                    {course}
+                                  </td>
+                                  <td><strong style={{ color: getRateColor(stats?.coverageRate ?? 0) }}>{stats?.coverageRate ?? 0}%</strong></td>
+                                  <td>{completed.toLocaleString()}</td>
+                                  <td style={{ color: missing > 0 ? '#FF8042' : '#00C49F' }}>{missing.toLocaleString()}</td>
+                                </tr>
+                              );
+                            }
+
+                            if (metricType === 'count') {
+                              const counts = aggregated
+                                .map(p => p.courses[course]?.completions ?? null)
+                                .filter(v => v !== null);
+                              const total = counts.reduce((s, v) => s + v, 0);
+                              const avg = counts.length > 0 ? Math.round(total / counts.length) : null;
+                              const latest = counts[counts.length - 1] ?? null;
+                              const prev = counts[counts.length - 2] ?? null;
+                              const delta = latest !== null && prev !== null ? latest - prev : null;
+                              return (
+                                <tr key={course}>
+                                  <td>
+                                    <span className="course-color-dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                    {course}
+                                  </td>
+                                  <td>{total.toLocaleString()}</td>
+                                  <td>{avg !== null ? avg : '—'}</td>
+                                  <td><DeltaBadge delta={delta} /></td>
+                                </tr>
+                              );
+                            }
+
+                            // metricType === 'rate'
                             const points = aggregated
                               .map(p => p.courses[course]?.completionRate ?? null)
                               .filter(v => v !== null);
@@ -603,10 +767,7 @@ export default function CompletionTrends({ data, courseGroups, groupVersions, sh
                             return (
                               <tr key={course}>
                                 <td>
-                                  <span
-                                    className="course-color-dot"
-                                    style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
-                                  />
+                                  <span className="course-color-dot" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
                                   {course}
                                 </td>
                                 <td>{avg !== null ? `${avg}%` : '—'}</td>

@@ -1,4 +1,4 @@
-import { format, getYear, getMonth, startOfMonth } from 'date-fns';
+import { format, getYear, getMonth, startOfMonth, getQuarter } from 'date-fns';
 import { courseMatchesBase } from './courseGrouping';
 
 /**
@@ -252,6 +252,115 @@ export function calculateSummaryStats(data, courseGroups) {
     overallCompletionRate,
     avgDaysToComplete
   };
+}
+
+/**
+ * Calculate cumulative workforce coverage over time.
+ *
+ * Denominator = total unique employees (all emails in the dataset).
+ * This is consistent across all time periods regardless of whether enrollment
+ * was self-directed (pre-2025) or auto-enrollment (post-2025).
+ *
+ * For each month, returns:
+ *  - coverageRate: cumulative % of employees who have EVER completed by that month
+ *  - newCompletions: raw completions in that specific month
+ *
+ * Caveat: "total employees" = unique emails in this CSV export. It may include
+ * former employees and miss employees who never appeared in any training record.
+ *
+ * @param {Array} data - Training data
+ * @param {Object} courseGroups - Course grouping data
+ * @param {boolean} groupVersions - Whether to group course versions
+ * @returns {{ totalEmployees, seriesByMonth, courseStats }}
+ */
+export function calculateCumulativeCoverage(data, courseGroups, groupVersions = true) {
+  const totalEmployees = new Set(data.map(r => r.email)).size;
+
+  // Track earliest completion date per (email, course)
+  const completionEvents = {}; // courseName -> Map<email, Date|null>
+
+  data.forEach(record => {
+    const isCompleted = record.percentCompleted === 100 || record.dateCompleted;
+    if (!isCompleted) return;
+
+    const courseName = groupVersions
+      ? courseGroups[record.course]?.baseName || record.course
+      : record.course;
+
+    if (!completionEvents[courseName]) {
+      completionEvents[courseName] = new Map();
+    }
+
+    const existing = completionEvents[courseName].get(record.email);
+    const date = record.dateCompleted || null;
+
+    // Keep the earliest completion date for each person
+    if (existing === undefined || (date && existing && date < existing)) {
+      completionEvents[courseName].set(record.email, date);
+    } else if (existing === undefined) {
+      completionEvents[courseName].set(record.email, date);
+    }
+  });
+
+  // Build sorted list of months that have at least one dated completion
+  const allMonthKeys = new Set();
+  Object.values(completionEvents).forEach(emailMap => {
+    emailMap.forEach(date => {
+      if (date) allMonthKeys.add(format(startOfMonth(date), 'yyyy-MM'));
+    });
+  });
+
+  const sortedMonths = Array.from(allMonthKeys).sort().map(monthKey => ({
+    monthKey,
+    date: new Date(monthKey + '-02') // +02 avoids DST boundary issues
+  }));
+
+  const courseNames = Object.keys(completionEvents);
+
+  // For each month, calculate cumulative coverage and new completions per course
+  const seriesByMonth = sortedMonths.map(({ monthKey, date }) => {
+    const point = { monthKey, date, label: format(date, 'MMM yyyy'), courses: {} };
+
+    courseNames.forEach(course => {
+      let newCompletions = 0;
+      let cumulativeCompleters = 0;
+
+      completionEvents[course].forEach(cDate => {
+        if (!cDate) {
+          // Completed but no date recorded — counts toward all months
+          cumulativeCompleters++;
+        } else {
+          const cKey = format(startOfMonth(cDate), 'yyyy-MM');
+          if (cKey <= monthKey) cumulativeCompleters++;
+          if (cKey === monthKey) newCompletions++;
+        }
+      });
+
+      point.courses[course] = {
+        newCompletions,
+        cumulativeCompleters,
+        coverageRate: totalEmployees > 0
+          ? Math.round((cumulativeCompleters / totalEmployees) * 100)
+          : 0
+      };
+    });
+
+    return point;
+  });
+
+  // Overall per-course totals (all-time)
+  const courseStats = {};
+  courseNames.forEach(course => {
+    const totalCompleters = completionEvents[course].size;
+    courseStats[course] = {
+      totalCompleters,
+      coverageRate: totalEmployees > 0
+        ? Math.round((totalCompleters / totalEmployees) * 100)
+        : 0
+    };
+  });
+
+  return { totalEmployees, seriesByMonth, courseStats };
 }
 
 /**
