@@ -1,6 +1,43 @@
 import * as XLSX from 'xlsx';
 import { formatCourseName, sortCoursesByPriority } from './courseConfig';
 
+const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
+
+/**
+ * Get current date formatted as MMDDYYYY
+ */
+function getDateString() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${month}${day}${year}`;
+}
+
+/**
+ * Sanitize a name for use in filename (remove spaces and special chars)
+ */
+function sanitizeName(name) {
+  return name.replace(/[^a-zA-Z0-9]/g, '');
+}
+
+/**
+ * Add clickable Yes/No feedback hyperlinks to a sheet row using HYPERLINK formula
+ * @param {Object} sheet - XLSX sheet object
+ * @param {string} row - 1-based row number (e.g., '7' for row 7)
+ */
+function addFeedbackLinks(sheet, row) {
+  sheet[`B${row}`] = { t: 's', v: 'Yes', l: { Target: FEEDBACK_FORM_URL } };
+  sheet[`C${row}`] = { t: 's', v: 'No', l: { Target: FEEDBACK_FORM_URL } };
+
+  // Expand sheet range to include column C if needed
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  if (range.e.c < 2) {
+    range.e.c = 2;
+    sheet['!ref'] = XLSX.utils.encode_range(range);
+  }
+}
+
 /**
  * Apply Excel styling to headers
  * @param {Object} sheet - XLSX sheet object
@@ -69,39 +106,78 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
-  summarySheet['B7'] = {
-    v: 'Yes',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  summarySheet['C7'] = {
-    v: 'No',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
+  addFeedbackLinks(summarySheet, 7);
 
   // Set column widths for summary sheet
   summarySheet['!cols'] = [
     { wch: 30 },
-    { wch: 40 }
+    { wch: 40 },
+    { wch: 10 }
   ];
 
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+  // My Status Report Sheet (supervisor's own courses)
+  const myStatusRows = [];
+  const supervisor = reportData.supervisor;
+
+  myStatusRows.push(['MY STATUS REPORT']);
+  myStatusRows.push(['']);
+  myStatusRows.push(['Name:', supervisor.displayName]);
+  myStatusRows.push(['Email:', supervisor.isPlaceholder ? 'N/A' : supervisor.email]);
+  myStatusRows.push(['']);
+
+  // Headers for courses
+  const myStatusHeaders = [
+    'Course',
+    'Percent Completed',
+    'Date Hired',
+    'Date Completed',
+    'Status'
+  ];
+  myStatusRows.push(myStatusHeaders);
+
+  // Add supervisor's courses
+  if (supervisor.courses && supervisor.courses.length > 0) {
+    const sortedCourses = sortCoursesByPriority(supervisor.courses);
+
+    sortedCourses.forEach(course => {
+      myStatusRows.push([
+        formatCourseName(course.course),
+        course.percentCompleted + '%',
+        course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+        course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+        course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+      ]);
+    });
+  } else {
+    myStatusRows.push(['No course enrollment data', '', '', '', '']);
+  }
+
+  // Add legend
+  myStatusRows.push(['']);
+  myStatusRows.push(['* Required/Compliance Course']);
+
+  const myStatusSheet = XLSX.utils.aoa_to_sheet(myStatusRows);
+
+  // Set column widths
+  myStatusSheet['!cols'] = [
+    { wch: 50 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Date Hired
+    { wch: 15 }, // Date Completed
+    { wch: 15 }  // Status
+  ];
+
+  // Style the headers (row 6)
+  styleHeaders(myStatusSheet, 'A6:E6');
+
+  XLSX.utils.book_append_sheet(workbook, myStatusSheet, 'My Status Report');
 
   // Direct Reports with Courses Sheet (grouped by person)
   const rows = [];
 
   // Add supervisor first
-  const supervisor = reportData.supervisor;
   rows.push(['SUPERVISOR:', supervisor.displayName]);
   rows.push(['Email:', supervisor.isPlaceholder ? 'N/A' : supervisor.email]);
   rows.push(['']); // Blank row
@@ -166,25 +242,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   rows.push(['* Required/Compliance Course']);
 
   const detailSheet = XLSX.utils.aoa_to_sheet(rows);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
-  detailSheet['B4'] = {
-    v: 'Yes',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  detailSheet['C4'] = {
-    v: 'No',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
+  addFeedbackLinks(detailSheet, 4);
 
   // Set column widths
   detailSheet['!cols'] = [
@@ -267,7 +325,9 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const reportType = reportData.cascading ? 'Cascading' : 'DirectOnly';
+  const supervisorName = sanitizeName(reportData.supervisor.displayName);
+  const excelFilename = `TrainingReport_${supervisorName}_${getDateString()}_${reportType}.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
 
@@ -363,25 +423,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
 
   // Create the sheet
   const sheet = XLSX.utils.aoa_to_sheet(rows);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-  const feedbackFormUrl = 'https://forms.office.com/r/qBfrHWQdAK';
-  sheet['B4'] = {
-    v: 'Yes',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  sheet['C4'] = {
-    v: 'No',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
+  addFeedbackLinks(sheet, 3);
 
   // Set column widths
   sheet['!cols'] = [
@@ -461,24 +503,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   });
 
   const listSheet = XLSX.utils.aoa_to_sheet(listRows);
-
-  // Add hyperlinks for feedback (Yes/No both link to same form)
-  listSheet['B4'] = {
-    v: 'Yes',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
-  listSheet['C4'] = {
-    v: 'No',
-    l: { Target: feedbackFormUrl },
-    s: {
-      font: { color: { rgb: '0563C1' }, underline: true },
-      alignment: { horizontal: 'left' }
-    }
-  };
+  addFeedbackLinks(listSheet, 3);
 
   listSheet['!cols'] = [
     { wch: 25 }, // Supervisor
@@ -501,7 +526,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const excelFilename = `TrainingReport_AllSupervisors_${getDateString()}_DirectReports.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
 
@@ -566,7 +591,7 @@ export function exportAllSupervisorReportsToExcel(supervisorsReports, filename =
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const excelFilename = `TrainingReport_AllSupervisors_${getDateString()}_Summary.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
 
@@ -634,6 +659,6 @@ export function exportTeamRosterToExcel(allTeamMembers, filename = 'team-roster'
   XLSX.utils.book_append_sheet(workbook, sheet, 'Team Roster');
 
   // Write the workbook to file
-  const excelFilename = `${filename}.xlsx`;
+  const excelFilename = `TrainingReport_Team_${getDateString()}_Roster.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
