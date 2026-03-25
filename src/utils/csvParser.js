@@ -193,6 +193,59 @@ function calculateDaysToComplete(hireDate, completedDate) {
 }
 
 /**
+ * Deduplicate records where a person has both a regular and "(Archived)" version
+ * of the same course.
+ *
+ * Rule: when a person has records in BOTH versions, the archived record is kept
+ * as authoritative (it holds the original completion date) and the non-archived
+ * record is dropped so they are not counted twice. If a person only appears in
+ * one version, that record is kept unchanged.
+ *
+ * This only activates when BOTH the base name and "(Archived)" variant appear
+ * in the dataset — e.g. "Workplace Safety" AND "Workplace Safety (Archived)".
+ *
+ * @param {Array} data - Parsed training records
+ * @returns {Array} Deduplicated records
+ */
+export function deduplicateArchivedCourses(data) {
+  const archivedPattern = /^(.+?)\s*\(Archived\)\s*$/i;
+  const courseNames = new Set(data.map(r => r.course));
+
+  // Build a map of baseName -> archivedName for pairs where BOTH exist in the data
+  const baseToArchived = {};
+  courseNames.forEach(name => {
+    const match = name.match(archivedPattern);
+    if (match) {
+      const baseName = match[1].trim();
+      if (courseNames.has(baseName)) {
+        baseToArchived[baseName] = name;
+      }
+    }
+  });
+
+  // Nothing to deduplicate
+  if (Object.keys(baseToArchived).length === 0) return data;
+
+  // For each pair, collect the emails that have an archived record
+  const emailsInArchived = {};
+  Object.entries(baseToArchived).forEach(([baseName, archivedName]) => {
+    emailsInArchived[baseName] = new Set(
+      data.filter(r => r.course === archivedName).map(r => r.email)
+    );
+  });
+
+  // Drop non-archived records for people who also have the archived version
+  return data.filter(record => {
+    const archivedVersion = baseToArchived[record.course];
+    if (archivedVersion && emailsInArchived[record.course].has(record.email)) {
+      // Non-archived record for someone who has the archived record — drop it
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
  * Export data to CSV
  * @param {Array} data - Data to export
  * @param {string} filename - Name of the file

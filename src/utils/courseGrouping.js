@@ -27,6 +27,7 @@ export function extractBaseCourse(courseName) {
     /\s*\(revised\)/gi,                   // (revised)
     /\s*\(updated\)/gi,                   // (updated)
     /\s*\(new\)/gi,                       // (new)
+    /\s*\(archived\)/gi,                  // (Archived)
     /\s*-\s*revised/gi,                   // - revised
     /\s*-\s*updated/gi,                   // - updated
     /\s*\d{4}\s*$/gi,                     // trailing year

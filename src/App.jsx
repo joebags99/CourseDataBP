@@ -9,6 +9,7 @@ import SupervisorReports from './components/SupervisorReports';
 import DataDisclaimer from './components/DataDisclaimer';
 import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './utils/courseGrouping';
 import { calculateSummaryStats, filterByDateRange } from './utils/analytics';
+import { deduplicateArchivedCourses } from './utils/csvParser';
 import './styles/App.css';
 
 function App() {
@@ -19,11 +20,18 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [dateRange, setDateRange] = useState({ start: null, end: null });
 
+  // Deduplicate records where a person has both a base course and its (Archived) twin.
+  // The archived record is authoritative; the non-archived duplicate is dropped.
+  const deduplicatedData = useMemo(
+    () => deduplicateArchivedCourses(rawData),
+    [rawData]
+  );
+
   // Process course groupings
   const courseGroups = useMemo(() => {
-    if (rawData.length === 0) return {};
+    if (deduplicatedData.length === 0) return {};
 
-    const uniqueCourses = getUniqueCourses(rawData);
+    const uniqueCourses = getUniqueCourses(deduplicatedData);
     const groups = groupCourseVersions(uniqueCourses);
 
     // Create a map from original course name to group info
@@ -38,13 +46,13 @@ function App() {
     });
 
     return courseMap;
-  }, [rawData]);
+  }, [deduplicatedData]);
 
   // Apply date range filter
   const filteredData = useMemo(() => {
-    if (!dateRange.start && !dateRange.end) return rawData;
-    return filterByDateRange(rawData, dateRange.start, dateRange.end);
-  }, [rawData, dateRange]);
+    if (!dateRange.start && !dateRange.end) return deduplicatedData;
+    return filterByDateRange(deduplicatedData, dateRange.start, dateRange.end);
+  }, [deduplicatedData, dateRange]);
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
@@ -160,18 +168,18 @@ function App() {
                     <div className="info-grid">
                       <div className="info-item">
                         <span className="info-label">Total Records:</span>
-                        <span className="info-value">{rawData.length}</span>
+                        <span className="info-value">{deduplicatedData.length}</span>
                       </div>
                       <div className="info-item">
                         <span className="info-label">Unique Courses:</span>
                         <span className="info-value">
-                          {getUniqueCourses(rawData).length}
+                          {getUniqueCourses(deduplicatedData).length}
                         </span>
                       </div>
                       <div className="info-item">
                         <span className="info-label">Course Groups:</span>
                         <span className="info-value">
-                          {Object.keys(groupCourseVersions(getUniqueCourses(rawData))).length}
+                          {Object.keys(groupCourseVersions(getUniqueCourses(deduplicatedData))).length}
                         </span>
                       </div>
                       <div className="info-item">
