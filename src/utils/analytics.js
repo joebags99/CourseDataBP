@@ -255,6 +255,120 @@ export function calculateSummaryStats(data, courseGroups) {
 }
 
 /**
+ * Calculate monthly completion RATES (enrollments vs completions) per course
+ * Groups by enrollment month so rates reflect cohort completion over time
+ * @param {Array} data - Training data
+ * @param {Object} courseGroups - Course grouping data
+ * @param {boolean} groupVersions - Whether to group course versions
+ * @returns {Array} Monthly rate trend data
+ */
+export function calculateCompletionRateTrends(data, courseGroups, groupVersions = true) {
+  const monthlyStats = {};
+
+  data.forEach(record => {
+    if (!record.enrolledAt) return;
+
+    const courseName = groupVersions
+      ? courseGroups[record.course]?.baseName || record.course
+      : record.course;
+
+    const monthKey = format(startOfMonth(record.enrolledAt), 'yyyy-MM');
+
+    if (!monthlyStats[monthKey]) {
+      monthlyStats[monthKey] = {
+        month: monthKey,
+        date: startOfMonth(record.enrolledAt),
+        totalEnrollments: 0,
+        totalCompletions: 0,
+        completionRate: 0,
+        courses: {}
+      };
+    }
+
+    monthlyStats[monthKey].totalEnrollments++;
+    if (record.percentCompleted === 100 || record.dateCompleted) {
+      monthlyStats[monthKey].totalCompletions++;
+    }
+
+    if (!monthlyStats[monthKey].courses[courseName]) {
+      monthlyStats[monthKey].courses[courseName] = { enrollments: 0, completions: 0, completionRate: 0 };
+    }
+    monthlyStats[monthKey].courses[courseName].enrollments++;
+    if (record.percentCompleted === 100 || record.dateCompleted) {
+      monthlyStats[monthKey].courses[courseName].completions++;
+    }
+  });
+
+  Object.values(monthlyStats).forEach(month => {
+    month.completionRate = month.totalEnrollments > 0
+      ? Math.round((month.totalCompletions / month.totalEnrollments) * 100)
+      : 0;
+    Object.values(month.courses).forEach(course => {
+      course.completionRate = course.enrollments > 0
+        ? Math.round((course.completions / course.enrollments) * 100)
+        : 0;
+    });
+  });
+
+  return Object.values(monthlyStats).sort((a, b) => a.date - b.date);
+}
+
+/**
+ * Calculate completion stats for a specific date window (filtered by enrolledAt)
+ * @param {Array} data - Training data
+ * @param {Object} courseGroups - Course grouping data
+ * @param {Date|null} startDate - Period start
+ * @param {Date|null} endDate - Period end
+ * @param {boolean} groupVersions - Whether to group course versions
+ * @returns {Object} Period stats: overallRate, totalEnrollments, totalCompletions, courses
+ */
+export function calculatePeriodStats(data, courseGroups, startDate, endDate, groupVersions = true) {
+  const filtered = data.filter(record => {
+    if (!record.enrolledAt) return false;
+    if (startDate && record.enrolledAt < startDate) return false;
+    if (endDate && record.enrolledAt > endDate) return false;
+    return true;
+  });
+
+  const courseStats = {};
+  let totalEnrollments = 0;
+  let totalCompletions = 0;
+
+  filtered.forEach(record => {
+    const courseName = groupVersions
+      ? courseGroups[record.course]?.baseName || record.course
+      : record.course;
+
+    if (!courseStats[courseName]) {
+      courseStats[courseName] = { enrollments: 0, completions: 0, completionRate: 0 };
+    }
+
+    courseStats[courseName].enrollments++;
+    totalEnrollments++;
+
+    if (record.percentCompleted === 100 || record.dateCompleted) {
+      courseStats[courseName].completions++;
+      totalCompletions++;
+    }
+  });
+
+  Object.values(courseStats).forEach(c => {
+    c.completionRate = c.enrollments > 0
+      ? Math.round((c.completions / c.enrollments) * 100)
+      : 0;
+  });
+
+  return {
+    totalEnrollments,
+    totalCompletions,
+    overallRate: totalEnrollments > 0
+      ? Math.round((totalCompletions / totalEnrollments) * 100)
+      : 0,
+    courses: courseStats
+  };
+}
+
+/**
  * Filter data by date range
  * @param {Array} data - Training data
  * @param {Date} startDate - Start date
