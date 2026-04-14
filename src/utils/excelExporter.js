@@ -596,6 +596,73 @@ export function exportAllSupervisorReportsToExcel(supervisorsReports, filename =
 }
 
 /**
+ * Export an individual employee's status report to Excel.
+ * Matches the "My Status Report" sheet style from the supervisor report.
+ * @param {Object} reportData - From getEmployeeReport
+ */
+export function exportIndividualReportToExcel(reportData) {
+  if (!reportData) return;
+
+  const workbook = XLSX.utils.book_new();
+
+  const rows = [];
+  rows.push(['MY STATUS REPORT']);
+  rows.push(['']);
+  rows.push(['Name:', reportData.displayName]);
+  rows.push(['Email:', reportData.email]);
+  if (reportData.lastHireDate) {
+    rows.push(['Date Hired:', new Date(reportData.lastHireDate).toLocaleDateString()]);
+  }
+  rows.push(['']);
+  rows.push(['Was this report helpful?']);
+  rows.push(['']);
+
+  const headers = ['Course', 'Percent Completed', 'Date Hired', 'Date Completed', 'Status'];
+  rows.push(headers);
+
+  if (reportData.courses && reportData.courses.length > 0) {
+    reportData.courses.forEach(course => {
+      rows.push([
+        formatCourseName(course.course),
+        course.percentCompleted + '%',
+        course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+        course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+        course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+      ]);
+    });
+  } else {
+    rows.push(['No course enrollment data', '', '', '', '']);
+  }
+
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
+
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Feedback Yes / No links on row 8 (index 7)
+  addFeedbackLinks(sheet, 8);
+
+  sheet['!cols'] = [
+    { wch: 50 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Date Hired
+    { wch: 15 }, // Date Completed
+    { wch: 15 }  // Status
+  ];
+
+  // Style the header row
+  const headerRowIndex = rows.findIndex(r => r[0] === 'Course');
+  if (headerRowIndex >= 0) {
+    styleHeaders(sheet, `A${headerRowIndex + 1}:E${headerRowIndex + 1}`);
+  }
+
+  XLSX.utils.book_append_sheet(workbook, sheet, 'My Status Report');
+
+  const nameSafe = sanitizeName(reportData.displayName);
+  XLSX.writeFile(workbook, `StatusReport_${nameSafe}_${getDateString()}.xlsx`);
+}
+
+/**
  * Export a single cost center report to Excel
  * Sheets: Summary, Staff & Courses, List View
  * @param {Object} reportData - From getCostCenterReport
