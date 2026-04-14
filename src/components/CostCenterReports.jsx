@@ -4,7 +4,8 @@ import {
   buildCostCenterData,
   getAllCostCenters,
   getAllRegions,
-  getCostCenterReport
+  getCostCenterReport,
+  getMultiCostCenterReport
 } from '../utils/costCenterUtils';
 import {
   exportCostCenterReportToExcel,
@@ -13,8 +14,9 @@ import {
 import '../styles/CostCenterReports.css';
 
 export default function CostCenterReports({ data, courseGroups, groupVersions }) {
-  const [selectedProgram, setSelectedProgram] = useState('');
+  const [selectedPrograms, setSelectedPrograms] = useState([]); // array of keys
   const [selectedRegion, setSelectedRegion] = useState('');
+  const [showProgramSelector, setShowProgramSelector] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState(new Set());
   const [sortBy, setSortBy] = useState('name');
   const [selectedCourses, setSelectedCourses] = useState([]);
@@ -26,14 +28,11 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     return buildCostCenterData(data);
   }, [data]);
 
-  // All cost centers sorted
   const allCostCenters = useMemo(() => getAllCostCenters(programMap), [programMap]);
-
-  // All regions for the region filter
   const allRegions = useMemo(() => getAllRegions(programMap), [programMap]);
 
-  // Cost centers filtered by selected region
-  const filteredCostCenters = useMemo(() => {
+  // Cost centers visible in the selector (filtered by region)
+  const visibleCostCenters = useMemo(() => {
     if (!selectedRegion) return allCostCenters;
     return allCostCenters.filter(cc => cc.regionCode === selectedRegion);
   }, [allCostCenters, selectedRegion]);
@@ -49,18 +48,21 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     return Array.from(coursesSet).sort();
   }, [programMap]);
 
-  // Initialize selectedCourses to all courses when data loads
+  // Initialize selectedCourses to all when data loads
   useMemo(() => {
     if (allCourses.length > 0 && selectedCourses.length === 0) {
       setSelectedCourses(allCourses);
     }
   }, [allCourses]);
 
-  // Report for the selected cost center
+  // Combined report for all selected programs
   const costCenterReport = useMemo(() => {
-    if (!selectedProgram) return null;
-    return getCostCenterReport(selectedProgram, programMap, selectedCourses);
-  }, [selectedProgram, programMap, selectedCourses]);
+    if (selectedPrograms.length === 0) return null;
+    return getMultiCostCenterReport(selectedPrograms, programMap, selectedCourses);
+  }, [selectedPrograms, programMap, selectedCourses]);
+
+  // Show a "Program" column whenever more than one program is selected
+  const showProgramColumn = selectedPrograms.length > 1;
 
   // Sorted employees
   const sortedEmployees = useMemo(() => {
@@ -70,17 +72,48 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
       if (sortBy === 'name') return a.displayName.localeCompare(b.displayName);
       if (sortBy === 'completionRate') return parseFloat(b.completionRate) - parseFloat(a.completionRate);
       if (sortBy === 'courses') return b.totalCourses - a.totalCourses;
+      if (sortBy === 'program') return a.programName.localeCompare(b.programName);
       return 0;
     });
     return sorted;
   }, [costCenterReport, sortBy]);
 
-  const toggleMemberExpansion = (email) => {
-    const next = new Set(expandedMembers);
-    if (next.has(email)) next.delete(email);
-    else next.add(email);
-    setExpandedMembers(next);
+  // ── Program selection helpers ──────────────────────────────────────────────
+
+  const toggleProgram = (key) => {
+    setSelectedPrograms(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+    setExpandedMembers(new Set());
   };
+
+  const selectAllVisible = () => {
+    const visibleKeys = visibleCostCenters.map(cc => cc.key);
+    setSelectedPrograms(prev => Array.from(new Set([...prev, ...visibleKeys])));
+    setExpandedMembers(new Set());
+  };
+
+  const deselectAllVisible = () => {
+    const visibleKeys = new Set(visibleCostCenters.map(cc => cc.key));
+    setSelectedPrograms(prev => prev.filter(k => !visibleKeys.has(k)));
+    setExpandedMembers(new Set());
+  };
+
+  const handleRegionChange = (regionCode) => {
+    setSelectedRegion(regionCode);
+    // Clear selections that are no longer in the new region view
+    if (regionCode) {
+      const regionKeys = new Set(
+        allCostCenters
+          .filter(cc => cc.regionCode === regionCode)
+          .map(cc => cc.key)
+      );
+      setSelectedPrograms(prev => prev.filter(k => regionKeys.has(k)));
+    }
+    setExpandedMembers(new Set());
+  };
+
+  // ── Course filter helpers ──────────────────────────────────────────────────
 
   const toggleCourseSelection = (courseName) => {
     setSelectedCourses(prev =>
@@ -90,29 +123,66 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     );
   };
 
-  const handleExportReport = () => {
+  // ── Export helpers ─────────────────────────────────────────────────────────
+
+  const handleExportSelected = () => {
     if (!costCenterReport) return;
-    exportCostCenterReportToExcel(costCenterReport);
+    if (selectedPrograms.length === 1) {
+      exportCostCenterReportToExcel(costCenterReport.programs
+        ? { ...getCostCenterReport(selectedPrograms[0], programMap, selectedCourses) }
+        : costCenterReport);
+    } else {
+      exportAllCostCentersToExcel(
+        selectedPrograms
+          .map(k => getCostCenterReport(k, programMap, selectedCourses))
+          .filter(Boolean)
+      );
+    }
   };
 
   const handleExportAll = () => {
     if (allCostCenters.length === 0) return;
-    const allReports = allCostCenters.map(cc =>
-      getCostCenterReport(cc.key, programMap, selectedCourses)
-    ).filter(Boolean);
-    exportAllCostCentersToExcel(allReports);
+    exportAllCostCentersToExcel(
+      allCostCenters.map(cc => getCostCenterReport(cc.key, programMap, selectedCourses)).filter(Boolean)
+    );
   };
+
+  // ── Member expand ──────────────────────────────────────────────────────────
+
+  const toggleMemberExpansion = (rowKey) => {
+    const next = new Set(expandedMembers);
+    if (next.has(rowKey)) next.delete(rowKey);
+    else next.add(rowKey);
+    setExpandedMembers(next);
+  };
+
+  // ── Report title ───────────────────────────────────────────────────────────
+
+  const reportTitle = useMemo(() => {
+    if (!costCenterReport) return '';
+    if (costCenterReport.programs.length === 1) return costCenterReport.programs[0].programName;
+    return `${costCenterReport.programs.length} Cost Centers Selected`;
+  }, [costCenterReport]);
+
+  const reportSubtitle = useMemo(() => {
+    if (!costCenterReport || costCenterReport.programs.length !== 1) return '';
+    return costCenterReport.programs[0].regionName;
+  }, [costCenterReport]);
+
+  // ── No data guard ──────────────────────────────────────────────────────────
 
   if (programMap.size === 0) {
     return (
       <div className="cost-center-reports">
         <div className="info-message">
           <p>No program/cost center data found in the uploaded file.</p>
-          <p>Please ensure your CSV export includes a "Program" column from UKG.</p>
+          <p>Please ensure your CSV export includes a "PROGRAM" column from UKG.</p>
         </div>
       </div>
     );
   }
+
+  const colSpan = showProgramColumn ? 8 : 7;
 
   return (
     <div className="cost-center-reports">
@@ -125,10 +195,7 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
             <select
               id="region-select"
               value={selectedRegion}
-              onChange={(e) => {
-                setSelectedRegion(e.target.value);
-                setSelectedProgram('');
-              }}
+              onChange={(e) => handleRegionChange(e.target.value)}
               className="cc-select"
             >
               <option value="">-- All Regions --</option>
@@ -141,22 +208,45 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
           </div>
         )}
 
-        {/* Program / cost center dropdown */}
+        {/* Program multi-select checkbox panel */}
         <div className="control-group">
-          <label htmlFor="program-select">Select Cost Center / Program:</label>
-          <select
-            id="program-select"
-            value={selectedProgram}
-            onChange={(e) => setSelectedProgram(e.target.value)}
-            className="cc-select"
-          >
-            <option value="">-- Select a Cost Center --</option>
-            {filteredCostCenters.map(cc => (
-              <option key={cc.key} value={cc.key}>
-                {cc.programName}{cc.regionName ? ` · ${cc.regionName}` : ''} ({cc.employeeCount} {cc.employeeCount === 1 ? 'employee' : 'employees'})
-              </option>
-            ))}
-          </select>
+          <div className="course-filter-header">
+            <label>Select Cost Centers / Programs:</label>
+            <button
+              className="filter-toggle-button"
+              onClick={() => setShowProgramSelector(!showProgramSelector)}
+            >
+              {showProgramSelector ? '▼ Hide' : '▶ Show'} ({selectedPrograms.length} of {visibleCostCenters.length} selected)
+            </button>
+          </div>
+          {showProgramSelector && (
+            <div className="course-filter-panel">
+              <div className="course-filter-actions">
+                <button className="filter-action-button" onClick={selectAllVisible}>
+                  Select All
+                </button>
+                <button className="filter-action-button" onClick={deselectAllVisible}>
+                  Deselect All
+                </button>
+              </div>
+              <div className="program-checkboxes">
+                {visibleCostCenters.map(cc => (
+                  <label key={cc.key} className="course-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={selectedPrograms.includes(cc.key)}
+                      onChange={() => toggleProgram(cc.key)}
+                    />
+                    <span className="program-checkbox-name">
+                      {cc.programName}
+                      {cc.regionName && <span className="program-checkbox-region"> · {cc.regionName}</span>}
+                      <span className="program-checkbox-count"> ({cc.employeeCount})</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Course filter */}
@@ -199,16 +289,16 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
         {/* Export buttons */}
         <div className="export-buttons">
           <button
-            onClick={handleExportReport}
+            onClick={handleExportSelected}
             disabled={!costCenterReport}
             className="export-button"
           >
-            Export Report to Excel
+            Export Selected to Excel
           </button>
           <button
             onClick={handleExportAll}
             className="export-button secondary"
-            title="Export all cost centers to a single Excel file"
+            title="Export every cost center to a single Excel file"
           >
             Export All Cost Centers
           </button>
@@ -219,9 +309,14 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
         <>
           {/* Summary stats */}
           <div className="report-summary">
-            <h2>{costCenterReport.program.programName}</h2>
-            {costCenterReport.program.regionName && (
-              <p className="region-label">{costCenterReport.program.regionName}</p>
+            <h2>{reportTitle}</h2>
+            {reportSubtitle && <p className="region-label">{reportSubtitle}</p>}
+            {showProgramColumn && (
+              <div className="selected-programs-list">
+                {costCenterReport.programs.map(p => (
+                  <span key={p.key} className="program-tag">{p.programName}</span>
+                ))}
+              </div>
             )}
             <div className="stats-grid">
               <div className="stat-card">
@@ -253,6 +348,7 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
                   <option value="name">Name</option>
                   <option value="completionRate">Completion Rate</option>
                   <option value="courses">Number of Courses</option>
+                  {showProgramColumn && <option value="program">Program</option>}
                 </select>
               </div>
             </div>
@@ -264,6 +360,7 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
                     <th></th>
                     <th>Name</th>
                     <th>Email</th>
+                    {showProgramColumn && <th>Program</th>}
                     <th>Total Courses</th>
                     <th>Completed</th>
                     <th>Completion Rate</th>
@@ -274,17 +371,17 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
                   {sortedEmployees.map((member) => (
                     <>
                       <tr
-                        key={member.email}
-                        className={expandedMembers.has(member.email) ? 'expanded' : ''}
+                        key={member.rowKey}
+                        className={expandedMembers.has(member.rowKey) ? 'expanded' : ''}
                       >
                         <td>
                           {member.hasData && member.courses.length > 0 ? (
                             <button
                               className="expand-button"
-                              onClick={() => toggleMemberExpansion(member.email)}
-                              aria-label={expandedMembers.has(member.email) ? 'Collapse' : 'Expand'}
+                              onClick={() => toggleMemberExpansion(member.rowKey)}
+                              aria-label={expandedMembers.has(member.rowKey) ? 'Collapse' : 'Expand'}
                             >
-                              {expandedMembers.has(member.email) ? '▼' : '▶'}
+                              {expandedMembers.has(member.rowKey) ? '▼' : '▶'}
                             </button>
                           ) : (
                             <span className="no-data-indicator">—</span>
@@ -292,6 +389,9 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
                         </td>
                         <td className="name-cell">{member.displayName}</td>
                         <td className="email-cell">{member.email}</td>
+                        {showProgramColumn && (
+                          <td className="program-cell">{member.programName}</td>
+                        )}
                         <td className="number-cell">{member.hasData ? member.totalCourses : '—'}</td>
                         <td className="number-cell">{member.hasData ? member.completedCourses : '—'}</td>
                         <td className="number-cell">
@@ -303,13 +403,11 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
                             <span className="no-data-text">—</span>
                           )}
                         </td>
-                        <td className="supervisor-cell">
-                          {member.supervisor || '—'}
-                        </td>
+                        <td className="supervisor-cell">{member.supervisor || '—'}</td>
                       </tr>
-                      {expandedMembers.has(member.email) && member.hasData && (
+                      {expandedMembers.has(member.rowKey) && member.hasData && (
                         <tr className="detail-row">
-                          <td colSpan="7">
+                          <td colSpan={colSpan}>
                             <div className="course-details">
                               <h4>Courses for {member.displayName}</h4>
                               {member.courses.length > 0 ? (

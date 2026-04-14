@@ -147,6 +147,54 @@ export function getAllRegions(programMap) {
 }
 
 /**
+ * Generate a combined report for multiple cost centers.
+ * Each employee entry includes a programName and a unique rowKey.
+ * @param {Array<string>} programKeys - Keys to include
+ * @param {Map} programMap - From buildCostCenterData
+ * @param {Array} selectedCourses - Course names to include (all if empty)
+ * @returns {Object|null} Combined report data object
+ */
+export function getMultiCostCenterReport(programKeys, programMap, selectedCourses = []) {
+  if (!programKeys || programKeys.length === 0) return null;
+
+  const reports = programKeys
+    .map(key => getCostCenterReport(key, programMap, selectedCourses))
+    .filter(Boolean);
+
+  if (reports.length === 0) return null;
+
+  // Flatten employees across all programs, tagging each with its program
+  const allEmployees = [];
+  reports.forEach(report => {
+    report.employees.forEach(emp => {
+      allEmployees.push({
+        ...emp,
+        programName: report.program.programName,
+        programKey: report.program.key,
+        rowKey: `${report.program.key}__${emp.email}`
+      });
+    });
+  });
+
+  const totalEnrollments = allEmployees.reduce((sum, e) => sum + e.totalCourses, 0);
+  const totalCompletions = allEmployees.reduce((sum, e) => sum + e.completedCourses, 0);
+  const overallCompletionRate = totalEnrollments > 0
+    ? (totalCompletions / totalEnrollments * 100).toFixed(1)
+    : 0;
+
+  return {
+    programs: reports.map(r => r.program),
+    employees: allEmployees,
+    statistics: {
+      totalEmployees: allEmployees.length,
+      totalEnrollments,
+      totalCompletions,
+      overallCompletionRate
+    }
+  };
+}
+
+/**
  * Generate report data for a specific cost center.
  * @param {string} programKey - Key from getAllCostCenters
  * @param {Map} programMap - From buildCostCenterData

@@ -279,6 +279,30 @@
   font-size: 0.875rem;
 }
 
+.program-cell {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Tags shown under the report title when multiple programs are selected */
+.selected-programs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.program-tag {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: rgba(0, 136, 254, 0.12);
+  color: var(--primary-blue);
+  border: 1px solid rgba(0, 136, 254, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .no-data-indicator {
   color: var(--text-secondary);
   font-size: 1rem;
@@ -465,6 +489,31 @@
   padding: var(--spacing-sm);
   background: var(--bg-secondary);
   border-radius: var(--radius-sm);
+}
+
+.program-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.program-checkbox-name {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.program-checkbox-region {
+  color: var(--text-secondary);
+}
+
+.program-checkbox-count {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .course-checkbox-label {
