@@ -104,7 +104,7 @@ export function parseCSV(file) {
               'Enrolled At': 'enrolledAt',
               'Date Completed': 'dateCompleted',
               'Last Hire Date': 'lastHireDate',
-              'Program': 'program'
+              'PROGRAM': 'program'
             };
             return headerMap[trimmed] || trimmed;
           });
