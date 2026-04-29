@@ -596,6 +596,289 @@ export function exportAllSupervisorReportsToExcel(supervisorsReports, filename =
 }
 
 /**
+ * Export an individual employee's status report to Excel.
+ * Matches the "My Status Report" sheet style from the supervisor report.
+ * @param {Object} reportData - From getEmployeeReport
+ */
+export function exportIndividualReportToExcel(reportData) {
+  if (!reportData) return;
+
+  const workbook = XLSX.utils.book_new();
+
+  const rows = [];
+  rows.push(['MY STATUS REPORT']);
+  rows.push(['']);
+  rows.push(['Name:', reportData.displayName]);
+  rows.push(['Email:', reportData.email]);
+  if (reportData.lastHireDate) {
+    rows.push(['Date Hired:', new Date(reportData.lastHireDate).toLocaleDateString()]);
+  }
+  rows.push(['']);
+  rows.push(['Was this report helpful?']);
+  rows.push(['']);
+
+  const headers = ['Course', 'Percent Completed', 'Date Hired', 'Date Completed', 'Status'];
+  rows.push(headers);
+
+  if (reportData.courses && reportData.courses.length > 0) {
+    reportData.courses.forEach(course => {
+      rows.push([
+        formatCourseName(course.course),
+        course.percentCompleted + '%',
+        course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+        course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+        course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+      ]);
+    });
+  } else {
+    rows.push(['No course enrollment data', '', '', '', '']);
+  }
+
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
+
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+
+  // Feedback Yes / No links on row 8 (index 7)
+  addFeedbackLinks(sheet, 8);
+
+  sheet['!cols'] = [
+    { wch: 50 }, // Course
+    { wch: 18 }, // Percent Completed
+    { wch: 15 }, // Date Hired
+    { wch: 15 }, // Date Completed
+    { wch: 15 }  // Status
+  ];
+
+  // Style the header row
+  const headerRowIndex = rows.findIndex(r => r[0] === 'Course');
+  if (headerRowIndex >= 0) {
+    styleHeaders(sheet, `A${headerRowIndex + 1}:E${headerRowIndex + 1}`);
+  }
+
+  XLSX.utils.book_append_sheet(workbook, sheet, 'My Status Report');
+
+  const nameSafe = sanitizeName(reportData.displayName);
+  XLSX.writeFile(workbook, `StatusReport_${nameSafe}_${getDateString()}.xlsx`);
+}
+
+/**
+ * Export a single cost center report to Excel
+ * Sheets: Summary, Staff & Courses, List View
+ * @param {Object} reportData - From getCostCenterReport
+ */
+export function exportCostCenterReportToExcel(reportData) {
+  if (!reportData) return;
+
+  const workbook = XLSX.utils.book_new();
+  const { program, employees, statistics } = reportData;
+
+  // --- Summary Sheet ---
+  const summaryData = [
+    ['Cost Center Report'],
+    [''],
+    ['Program:', program.programName],
+    ['Program Code:', program.programCode],
+    ['Region:', program.regionName],
+    [''],
+    ['Was this report helpful?'],
+    [''],
+    ['Statistics:'],
+    ['Total Employees:', statistics.totalEmployees],
+    ['Total Enrollments:', statistics.totalEnrollments],
+    ['Total Completions:', statistics.totalCompletions],
+    ['Overall Completion Rate:', `${statistics.overallCompletionRate}%`],
+    [''],
+    ['Generated:', new Date().toLocaleString()]
+  ];
+
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  addFeedbackLinks(summarySheet, 7);
+  summarySheet['!cols'] = [{ wch: 30 }, { wch: 45 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+  // --- Staff & Courses Sheet (grouped by person) ---
+  const detailRows = [];
+  detailRows.push(['COST CENTER:', program.programName]);
+  detailRows.push(['Region:', program.regionName]);
+  detailRows.push(['']);
+  detailRows.push(['Was this report helpful?']);
+  detailRows.push(['']);
+  detailRows.push(['STAFF AND THEIR COURSES:']);
+  detailRows.push(['']);
+
+  const detailHeaders = ['Name', 'Course', 'Percent Completed', 'Date Hired', 'Date Completed', 'Status'];
+  detailRows.push(detailHeaders);
+
+  employees.forEach(member => {
+    if (member.hasData && member.courses.length > 0) {
+      const sortedCourses = sortCoursesByPriority(member.courses);
+      sortedCourses.forEach((course, idx) => {
+        detailRows.push([
+          idx === 0 ? member.displayName : '',
+          formatCourseName(course.course),
+          course.percentCompleted + '%',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+          course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+        ]);
+      });
+    } else {
+      detailRows.push([member.displayName, 'No course enrollment data', '', '', '', '']);
+    }
+    detailRows.push(['', '', '', '', '', '']);
+  });
+
+  detailRows.push(['']);
+  detailRows.push(['* Required/Compliance Course']);
+
+  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+  addFeedbackLinks(detailSheet, 4);
+  detailSheet['!cols'] = [
+    { wch: 25 }, { wch: 50 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+  ];
+  const headerRowIdx = detailRows.findIndex(r => r[0] === 'Name');
+  if (headerRowIdx >= 0) styleHeaders(detailSheet, `A${headerRowIdx + 1}:F${headerRowIdx + 1}`);
+  XLSX.utils.book_append_sheet(workbook, detailSheet, 'Staff & Courses');
+
+  // --- List View Sheet ---
+  const listRows = [];
+  const listHeaders = ['Name', 'Email', 'Course', 'Percent Completed', 'Status', 'Date Hired', 'Date Completed'];
+  listRows.push(listHeaders);
+
+  employees.forEach(member => {
+    if (member.hasData && member.courses.length > 0) {
+      const sortedCourses = sortCoursesByPriority(member.courses);
+      sortedCourses.forEach(course => {
+        listRows.push([
+          member.displayName,
+          member.email,
+          formatCourseName(course.course),
+          course.percentCompleted + '%',
+          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+          course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+          course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
+        ]);
+      });
+    } else {
+      listRows.push([member.displayName, member.email, 'No course enrollment data', '', '', '', '']);
+    }
+  });
+
+  const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+  listSheet['!cols'] = [
+    { wch: 25 }, { wch: 35 }, { wch: 50 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+  ];
+  styleHeaders(listSheet, `A1:G1`);
+  listSheet['!autofilter'] = { ref: `A1:G${listRows.length}` };
+  XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
+
+  const programSafe = sanitizeName(program.programName);
+  XLSX.writeFile(workbook, `TrainingReport_${programSafe}_${getDateString()}_CostCenter.xlsx`);
+}
+
+/**
+ * Export all cost centers to a single Excel file (grouped view + list view)
+ * @param {Array} allReports - Array of report objects from getCostCenterReport
+ */
+export function exportAllCostCentersToExcel(allReports) {
+  if (!allReports || allReports.length === 0) return;
+
+  const workbook = XLSX.utils.book_new();
+
+  // --- Grouped Sheet ---
+  const rows = [];
+  rows.push(['All Cost Centers - Staff & Courses Summary']);
+  rows.push(['']);
+  rows.push(['Was this report helpful?']);
+  rows.push(['']);
+
+  const headers = ['Program', 'Region', 'Name', 'Course', 'Percent Completed', 'Date Hired', 'Date Completed', 'Status'];
+  rows.push(headers);
+
+  const sorted = [...allReports].sort((a, b) => a.program.programName.localeCompare(b.program.programName));
+
+  sorted.forEach(report => {
+    report.employees.forEach(member => {
+      if (member.hasData && member.courses.length > 0) {
+        const sortedCourses = sortCoursesByPriority(member.courses);
+        sortedCourses.forEach((course, idx) => {
+          rows.push([
+            idx === 0 ? report.program.programName : '',
+            idx === 0 ? report.program.regionName : '',
+            idx === 0 ? member.displayName : '',
+            formatCourseName(course.course),
+            course.percentCompleted + '%',
+            course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
+            course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+          ]);
+        });
+      } else {
+        rows.push([report.program.programName, report.program.regionName, member.displayName, 'No course enrollment data', '', '', '', '']);
+      }
+      rows.push(['', '', '', '', '', '', '', '']);
+    });
+    rows.push(['', '', '', '', '', '', '', '']);
+  });
+
+  rows.push(['']);
+  rows.push(['* Required/Compliance Course']);
+
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  addFeedbackLinks(sheet, 3);
+  sheet['!cols'] = [
+    { wch: 35 }, { wch: 25 }, { wch: 25 }, { wch: 45 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+  ];
+  styleHeaders(sheet, 'A5:H5');
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Staff & Courses');
+
+  // --- List View Sheet ---
+  const listRows = [];
+  listRows.push(['All Cost Centers - List View']);
+  listRows.push(['']);
+  listRows.push(['Was this report helpful?']);
+  listRows.push(['']);
+
+  const listHeaders = ['Program', 'Region', 'Name', 'Email', 'Course', 'Percent Completed', 'Status', 'Date Hired', 'Date Completed'];
+  listRows.push(listHeaders);
+
+  sorted.forEach(report => {
+    report.employees.forEach(member => {
+      if (member.hasData && member.courses.length > 0) {
+        const sortedCourses = sortCoursesByPriority(member.courses);
+        sortedCourses.forEach(course => {
+          listRows.push([
+            report.program.programName,
+            report.program.regionName,
+            member.displayName,
+            member.email,
+            formatCourseName(course.course),
+            course.percentCompleted + '%',
+            course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+            course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
+            course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
+          ]);
+        });
+      } else {
+        listRows.push([report.program.programName, report.program.regionName, member.displayName, member.email, 'No course enrollment data', '', '', '', '']);
+      }
+    });
+  });
+
+  const listSheet = XLSX.utils.aoa_to_sheet(listRows);
+  addFeedbackLinks(listSheet, 3);
+  listSheet['!cols'] = [
+    { wch: 35 }, { wch: 25 }, { wch: 25 }, { wch: 35 }, { wch: 45 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+  ];
+  styleHeaders(listSheet, 'A5:I5');
+  listSheet['!autofilter'] = { ref: `A5:I${listRows.length}` };
+  XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
+
+  XLSX.writeFile(workbook, `TrainingReport_AllCostCenters_${getDateString()}.xlsx`);
+}
+
+/**
  * Export team roster (all team members across all supervisors) to Excel
  * @param {Array} allTeamMembers - Array of all team member objects
  * @param {string} filename - Base filename (without extension)

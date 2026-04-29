@@ -6,6 +6,8 @@ import CompletionTrends from './components/CompletionTrends';
 import StaffAnalysis from './components/StaffAnalysis';
 import NewHires from './components/NewHires';
 import SupervisorReports from './components/SupervisorReports';
+import CostCenterReports from './components/CostCenterReports';
+import IndividualReport from './components/IndividualReport';
 import DataDisclaimer from './components/DataDisclaimer';
 import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './utils/courseGrouping';
 import { calculateSummaryStats, filterByDateRange } from './utils/analytics';
@@ -78,6 +80,8 @@ function App() {
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'newhires', label: 'New Hires', icon: '🎓' },
     { id: 'supervisors', label: 'Supervisor Reports', icon: '👔' },
+    { id: 'costcenters', label: 'Cost Center Reports', icon: '🏢' },
+    { id: 'individual', label: 'Individual Report', icon: '👤' },
     { id: 'yoy', label: 'Year-over-Year', icon: '📈' },
     { id: 'trends', label: 'Trends', icon: '📉' },
     { id: 'staff', label: 'Staff Analysis', icon: '👥' }
@@ -215,6 +219,22 @@ function App() {
                     courseGroups={courseGroups}
                     groupVersions={groupVersions}
                   />
+                </div>
+              )}
+
+              {activeTab === 'costcenters' && (
+                <div className="tab-content">
+                  <CostCenterReports
+                    data={filteredData}
+                    courseGroups={courseGroups}
+                    groupVersions={groupVersions}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'individual' && (
+                <div className="tab-content">
+                  <IndividualReport data={filteredData} />
                 </div>
               )}
 

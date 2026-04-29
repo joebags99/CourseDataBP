@@ -103,7 +103,8 @@ export function parseCSV(file) {
               'Supervisor': 'supervisor',
               'Enrolled At': 'enrolledAt',
               'Date Completed': 'dateCompleted',
-              'Last Hire Date': 'lastHireDate'
+              'Last Hire Date': 'lastHireDate',
+              'PROGRAM': 'program'
             };
             return headerMap[trimmed] || trimmed;
           });
@@ -144,6 +145,7 @@ export function parseCSV(file) {
                 course: rowData.course ? rowData.course.trim() : '',
                 percentCompleted: parseFloat(rowData.percentCompleted) || 0,
                 supervisor: rowData.supervisor ? rowData.supervisor.trim() : '',
+                program: rowData.program ? rowData.program.trim() : '',
                 enrolledAt: parseDate(rowData.enrolledAt),
                 dateCompleted: parseDate(rowData.dateCompleted),
                 lastHireDate: parseDate(rowData.lastHireDate),
