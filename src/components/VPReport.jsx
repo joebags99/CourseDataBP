@@ -4,7 +4,7 @@ import { exportToCSV } from '../utils/csvParser';
 import '../styles/VPReport.css';
 
 // These three VPs get their own category; everyone else rolls into "Admin"
-const FEATURED_VP_NAMES = ['Emily Medre', 'Gabby Hidalgo', 'Melinda Smith'];
+const FEATURED_VP_NAMES = ['Emily Medere', 'Gabby Hidalgo', 'Melinda Smith'];
 const ADMIN_GROUP_ID = '__admin__';
 
 export default function VPReport({ data }) {

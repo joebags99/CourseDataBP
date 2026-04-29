@@ -277,7 +277,7 @@ export const VP_NAMES = [
   'Paula Corrigan-Halpern',
   'Seth Baker',
   'Mary Grawe',
-  'Emily Medre',
+  'Emily Medere',
   'Gabby Hidalgo',
   'Melinda Smith',
   'Eric Brenner',
