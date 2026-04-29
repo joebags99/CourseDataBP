@@ -14,14 +14,11 @@ import {
 import '../styles/CostCenterReports.css';
 
 export default function CostCenterReports({ data, courseGroups, groupVersions }) {
-  const [viewMode, setViewMode] = useState('overview'); // 'overview' | 'detail'
   const [selectedPrograms, setSelectedPrograms] = useState([]); // array of keys
   const [selectedRegion, setSelectedRegion] = useState('');
   const [showProgramSelector, setShowProgramSelector] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState(new Set());
   const [sortBy, setSortBy] = useState('name');
-  const [overviewSortBy, setOverviewSortBy] = useState('name'); // 'name' | 'rate' | 'employees'
-  const [overviewSortDir, setOverviewSortDir] = useState('asc');
   const [selectedCourses, setSelectedCourses] = useState([]);
   const [showCourseFilter, setShowCourseFilter] = useState(false);
 
@@ -80,48 +77,6 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     });
     return sorted;
   }, [costCenterReport, sortBy]);
-
-  // Overview: one row per cost center visible under the current region filter
-  const overviewRows = useMemo(() => {
-    const rows = visibleCostCenters.map(cc => {
-      const report = getCostCenterReport(cc.key, programMap, selectedCourses);
-      if (!report) return null;
-      return {
-        key: cc.key,
-        programName: cc.programName,
-        regionName: cc.regionName,
-        employees: report.statistics.totalEmployees,
-        enrollments: report.statistics.totalEnrollments,
-        completions: report.statistics.totalCompletions,
-        rate: parseFloat(report.statistics.overallCompletionRate),
-      };
-    }).filter(Boolean);
-
-    rows.sort((a, b) => {
-      let cmp = 0;
-      if (overviewSortBy === 'name') cmp = a.programName.localeCompare(b.programName);
-      else if (overviewSortBy === 'rate') cmp = a.rate - b.rate;
-      else if (overviewSortBy === 'employees') cmp = a.employees - b.employees;
-      return overviewSortDir === 'asc' ? cmp : -cmp;
-    });
-
-    return rows;
-  }, [visibleCostCenters, programMap, selectedCourses, overviewSortBy, overviewSortDir]);
-
-  const handleOverviewSort = (col) => {
-    if (overviewSortBy === col) {
-      setOverviewSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setOverviewSortBy(col);
-      setOverviewSortDir(col === 'rate' ? 'desc' : 'asc');
-    }
-  };
-
-  const openDetail = (key) => {
-    setSelectedPrograms([key]);
-    setViewMode('detail');
-    setExpandedMembers(new Set());
-  };
 
   // ── Program selection helpers ──────────────────────────────────────────────
 
@@ -231,23 +186,6 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
 
   return (
     <div className="cost-center-reports">
-
-      {/* View mode toggle */}
-      <div className="view-toggle">
-        <button
-          className={`view-toggle-btn${viewMode === 'overview' ? ' active' : ''}`}
-          onClick={() => setViewMode('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={`view-toggle-btn${viewMode === 'detail' ? ' active' : ''}`}
-          onClick={() => setViewMode('detail')}
-        >
-          Detail
-        </button>
-      </div>
-
       <div className="controls-section">
 
         {/* Region filter */}
@@ -270,8 +208,8 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
           </div>
         )}
 
-        {/* Program multi-select checkbox panel — detail mode only */}
-        {viewMode === 'detail' && <div className="control-group">
+        {/* Program multi-select checkbox panel */}
+        <div className="control-group">
           <div className="course-filter-header">
             <label>Select Cost Centers / Programs:</label>
             <button
@@ -309,7 +247,7 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
               </div>
             </div>
           )}
-        </div>}
+        </div>
 
         {/* Course filter */}
         <div className="control-group">
@@ -348,97 +286,26 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
           )}
         </div>
 
-        {/* Export buttons — detail only */}
-        {viewMode === 'detail' && (
-          <div className="export-buttons">
-            <button
-              onClick={handleExportSelected}
-              disabled={!costCenterReport}
-              className="export-button"
-            >
-              Export Selected to Excel
-            </button>
-            <button
-              onClick={handleExportAll}
-              className="export-button secondary"
-              title="Export every cost center to a single Excel file"
-            >
-              Export All Cost Centers
-            </button>
-          </div>
-        )}
+        {/* Export buttons */}
+        <div className="export-buttons">
+          <button
+            onClick={handleExportSelected}
+            disabled={!costCenterReport}
+            className="export-button"
+          >
+            Export Selected to Excel
+          </button>
+          <button
+            onClick={handleExportAll}
+            className="export-button secondary"
+            title="Export every cost center to a single Excel file"
+          >
+            Export All Cost Centers
+          </button>
+        </div>
       </div>
 
-      {/* ── Overview table ─────────────────────────────────────────── */}
-      {viewMode === 'overview' && (
-        <div className="overview-section">
-          <div className="section-header">
-            <h3>Cost Center Overview ({overviewRows.length})</h3>
-          </div>
-          <div className="table-container">
-            <table className="team-table overview-table">
-              <thead>
-                <tr>
-                  <th
-                    className="sortable-th"
-                    onClick={() => handleOverviewSort('name')}
-                  >
-                    Cost Center {overviewSortBy === 'name' ? (overviewSortDir === 'asc' ? '↑' : '↓') : ''}
-                  </th>
-                  <th>Region</th>
-                  <th
-                    className="sortable-th number-cell"
-                    onClick={() => handleOverviewSort('employees')}
-                  >
-                    Employees {overviewSortBy === 'employees' ? (overviewSortDir === 'asc' ? '↑' : '↓') : ''}
-                  </th>
-                  <th className="number-cell">Enrollments</th>
-                  <th className="number-cell">Completions</th>
-                  <th
-                    className="sortable-th"
-                    onClick={() => handleOverviewSort('rate')}
-                  >
-                    Completion Rate {overviewSortBy === 'rate' ? (overviewSortDir === 'asc' ? '↑' : '↓') : ''}
-                  </th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {overviewRows.map(row => (
-                  <tr key={row.key}>
-                    <td className="name-cell">{row.programName}</td>
-                    <td className="program-cell">{row.regionName || '—'}</td>
-                    <td className="number-cell">{row.employees}</td>
-                    <td className="number-cell">{row.enrollments}</td>
-                    <td className="number-cell">{row.completions}</td>
-                    <td className="rate-cell">
-                      <div className="rate-bar-wrap">
-                        <div
-                          className={`rate-bar rate-bar-${getCompletionLevel(row.rate)}`}
-                          style={{ width: `${row.rate}%` }}
-                        />
-                        <span className={`completion-badge completion-${getCompletionLevel(row.rate)}`}>
-                          {row.rate}%
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <button
-                        className="detail-link-btn"
-                        onClick={() => openDetail(row.key)}
-                      >
-                        View Detail →
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {viewMode === 'detail' && costCenterReport && (
+      {costCenterReport && (
         <>
           {/* Summary stats */}
           <div className="report-summary">
