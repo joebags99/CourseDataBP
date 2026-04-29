@@ -85,16 +85,6 @@ export default function VPReport({ data }) {
     );
   }
 
-  if (vps.length === 0) {
-    return (
-      <div className="vp-report">
-        <div className="info-message">
-          <p>No VP-level managers found. VPs are identified as managers with no supervisor in the dataset.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="vp-report">
       <div className="vp-report-header">
@@ -102,7 +92,6 @@ export default function VPReport({ data }) {
           <h2>VP Employee Mapping</h2>
           <p className="vp-report-description">
             Select one or more VPs to see every employee who rolls up to them.
-            VPs are the top-level managers in the hierarchy (no supervisor in the dataset).
           </p>
         </div>
         <button
@@ -125,14 +114,17 @@ export default function VPReport({ data }) {
         </div>
         <div className="vp-checkbox-grid">
           {vps.map(vp => (
-            <label key={vp.email} className="vp-checkbox-label">
+            <label key={vp.email} className={`vp-checkbox-label${vp.notFound ? ' vp-not-found' : ''}`}>
               <input
                 type="checkbox"
                 checked={selectedVPs.has(vp.email)}
                 onChange={() => toggleVP(vp.email)}
               />
               <span className="vp-name">{vp.displayName}</span>
-              <span className="vp-count">({vp.allReports.size + 1} total)</span>
+              {vp.notFound
+                ? <span className="vp-missing" title="Name not matched in this CSV">not in data</span>
+                : <span className="vp-count">({vp.allReports.size + 1} total)</span>
+              }
             </label>
           ))}
         </div>

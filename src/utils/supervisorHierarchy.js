@@ -267,37 +267,67 @@ export function buildHierarchy(rawData) {
   };
 }
 
+// Canonical list of VP-level employees, matched by name against the loaded data.
+export const VP_NAMES = [
+  'Angelica Stapert',
+  'Kathryn Mattie',
+  'Mario Perez',
+  'Matea Varvodic',
+  'Melissa Sclinger',
+  'Paula Corrigan-Halpern',
+  'Seth Baker',
+  'Mary Grawe',
+  'Emily Medere',
+  'Gabby Higalgo',
+  'Melinda Smith',
+  'Eric Brenner',
+];
+
 /**
- * Identify VP-level employees (root nodes with no supervisor in the data)
- * and return a mapping of every employee email -> their VP's email.
- * VPs map to themselves.
+ * Identify VPs by name (see VP_NAMES) and return a mapping of every
+ * employee email -> the email key of their VP.  VPs map to themselves.
  * @param {Object} hierarchy - Hierarchy data from buildHierarchy
  * @returns {{ vps: Array, employeeToVP: Map<string, string> }}
  */
 export function getVPsAndMapping(hierarchy) {
   const vps = [];
+  const employeeToVP = new Map();
 
-  // Root nodes = employees with no supervisors AND at least one direct report
-  hierarchy.employeeMap.forEach((employee) => {
-    if (employee.supervisors.length === 0 && employee.directReports.size > 0) {
-      vps.push(employee);
+  VP_NAMES.forEach(vpName => {
+    // Find this VP in the employee map using the same flexible name matching
+    let found = null;
+    for (const [, employee] of hierarchy.employeeMap) {
+      if (namesMatch(employee.displayName, vpName)) {
+        found = employee;
+        break;
+      }
+    }
+
+    if (found) {
+      vps.push(found);
+      employeeToVP.set(found.email, found.email);
+      found.allReports.forEach(reportEmail => {
+        if (!employeeToVP.has(reportEmail)) {
+          employeeToVP.set(reportEmail, found.email);
+        }
+      });
+    } else {
+      // VP not in the enrollment data — show them as a stub so they appear in the selector
+      const stub = {
+        email: `__vp_stub__${vpName}`,
+        displayName: vpName,
+        supervisors: [],
+        directReports: new Set(),
+        allReports: new Set(),
+        hasData: false,
+        isPlaceholder: true,
+        notFound: true,
+      };
+      vps.push(stub);
     }
   });
 
-  // Sort VPs by display name
   vps.sort((a, b) => a.displayName.localeCompare(b.displayName));
-
-  // Build employee -> VP map
-  const employeeToVP = new Map();
-  vps.forEach(vp => {
-    employeeToVP.set(vp.email, vp.email); // VP maps to themselves
-    vp.allReports.forEach(reportEmail => {
-      // Only assign if not already assigned (handles edge-case overlaps)
-      if (!employeeToVP.has(reportEmail)) {
-        employeeToVP.set(reportEmail, vp.email);
-      }
-    });
-  });
 
   return { vps, employeeToVP };
 }

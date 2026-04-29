@@ -101,6 +101,19 @@
   font-size: 0.82rem;
 }
 
+.vp-missing {
+  font-size: 0.75rem;
+  color: #b05000;
+  background: #fff3e0;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-style: italic;
+}
+
+.vp-not-found .vp-name {
+  color: var(--text-secondary, #888);
+}
+
 /* Table */
 .vp-table-section {
   display: flex;
