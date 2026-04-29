@@ -3,8 +3,12 @@ import { buildHierarchy, getVPsAndMapping } from '../utils/supervisorHierarchy';
 import { exportToCSV } from '../utils/csvParser';
 import '../styles/VPReport.css';
 
+// These three VPs get their own category; everyone else rolls into "Admin"
+const FEATURED_VP_NAMES = ['Emily Medre', 'Gabby Hidalgo', 'Melinda Smith'];
+const ADMIN_GROUP_ID = '__admin__';
+
 export default function VPReport({ data }) {
-  const [selectedVPs, setSelectedVPs] = useState(new Set());
+  const [selectedGroups, setSelectedGroups] = useState(new Set());
 
   const hierarchy = useMemo(() => {
     if (data.length === 0) return null;
@@ -16,29 +20,69 @@ export default function VPReport({ data }) {
     return getVPsAndMapping(hierarchy);
   }, [hierarchy]);
 
-  // Pre-select all VPs on first load
-  useMemo(() => {
-    if (vps.length > 0 && selectedVPs.size === 0) {
-      setSelectedVPs(new Set(vps.map(v => v.email)));
-    }
-  }, [vps]);
+  // Build the 4 display groups: 3 featured + Admin
+  const displayGroups = useMemo(() => {
+    const featured = [];
+    const adminVPEmails = new Set();
 
-  const toggleVP = (email) => {
-    setSelectedVPs(prev => {
-      const next = new Set(prev);
-      if (next.has(email)) {
-        next.delete(email);
-      } else {
-        next.add(email);
+    vps.forEach(vp => {
+      if (FEATURED_VP_NAMES.includes(vp._vpCanonicalName)) {
+        featured.push({
+          id: vp.email,
+          label: vp.displayName,
+          vpEmails: new Set([vp.email]),
+          notFound: vp.notFound || false,
+        });
+      } else if (!vp.notFound) {
+        adminVPEmails.add(vp.email);
       }
+    });
+
+    // Count unique employees under Admin
+    let adminEmployeeCount = 0;
+    if (adminVPEmails.size > 0) {
+      const seen = new Set();
+      employeeToVP.forEach((vpEmailSet, empEmail) => {
+        if ([...vpEmailSet].some(e => adminVPEmails.has(e))) seen.add(empEmail);
+      });
+      adminEmployeeCount = seen.size;
+    }
+
+    const groups = [...featured];
+    if (adminVPEmails.size > 0) {
+      groups.push({
+        id: ADMIN_GROUP_ID,
+        label: 'Admin',
+        vpEmails: adminVPEmails,
+        notFound: false,
+        adminEmployeeCount,
+        adminVPCount: adminVPEmails.size,
+      });
+    }
+
+    return groups;
+  }, [vps, employeeToVP]);
+
+  // Pre-select all groups on first load
+  useMemo(() => {
+    if (displayGroups.length > 0 && selectedGroups.size === 0) {
+      setSelectedGroups(new Set(displayGroups.map(g => g.id)));
+    }
+  }, [displayGroups]);
+
+  const toggleGroup = (id) => {
+    setSelectedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  const selectAll = () => setSelectedVPs(new Set(vps.map(v => v.email)));
-  const deselectAll = () => setSelectedVPs(new Set());
+  const selectAll = () => setSelectedGroups(new Set(displayGroups.map(g => g.id)));
+  const deselectAll = () => setSelectedGroups(new Set());
 
-  // Build rows: every employee (with data) who rolls up to at least one selected VP
+  // Build rows: one per employee whose group(s) are selected
   const rows = useMemo(() => {
     if (!hierarchy) return [];
 
@@ -46,36 +90,33 @@ export default function VPReport({ data }) {
     hierarchy.employeeMap.forEach((employee, email) => {
       if (!employee.hasData) return;
 
-      const vpEmails = employeeToVP.get(email); // Set<string> | undefined
-      if (!vpEmails) return;
+      const vpEmailSet = employeeToVP.get(email);
+      if (!vpEmailSet) return;
 
-      // Collect only the selected VPs this employee belongs to
-      const matchingVPNames = [];
-      vpEmails.forEach(vpEmail => {
-        if (selectedVPs.has(vpEmail)) {
-          const vp = hierarchy.employeeMap.get(vpEmail);
-          matchingVPNames.push(vp ? vp.displayName : vpEmail);
+      const matchedLabels = [];
+      displayGroups.forEach(group => {
+        if (!selectedGroups.has(group.id)) return;
+        if ([...vpEmailSet].some(vpEmail => group.vpEmails.has(vpEmail))) {
+          matchedLabels.push(group.label);
         }
       });
 
-      if (matchingVPNames.length === 0) return;
+      if (matchedLabels.length === 0) return;
 
-      matchingVPNames.sort();
       result.push({
         name: employee.displayName,
         email: employee.isPlaceholder ? '' : employee.email,
-        vpName: matchingVPNames.join(', '),
+        vpName: matchedLabels.join(', '),
       });
     });
 
     result.sort((a, b) => {
       const vpCmp = a.vpName.localeCompare(b.vpName);
-      if (vpCmp !== 0) return vpCmp;
-      return a.name.localeCompare(b.name);
+      return vpCmp !== 0 ? vpCmp : a.name.localeCompare(b.name);
     });
 
     return result;
-  }, [hierarchy, employeeToVP, selectedVPs]);
+  }, [hierarchy, employeeToVP, displayGroups, selectedGroups]);
 
   const handleExport = () => {
     if (rows.length === 0) return;
@@ -88,9 +129,7 @@ export default function VPReport({ data }) {
   if (!hierarchy) {
     return (
       <div className="vp-report">
-        <div className="info-message">
-          <p>No data loaded. Please upload a CSV file first.</p>
-        </div>
+        <div className="info-message"><p>No data loaded. Please upload a CSV file first.</p></div>
       </div>
     );
   }
@@ -101,21 +140,19 @@ export default function VPReport({ data }) {
         <div>
           <h2>VP Employee Mapping</h2>
           <p className="vp-report-description">
-            Select one or more VPs to see every employee who rolls up to them.
+            Select one or more categories to see every employee who rolls up to them.
           </p>
         </div>
-        <button
-          className="export-button"
-          onClick={handleExport}
-          disabled={rows.length === 0}
-        >
+        <button className="export-button" onClick={handleExport} disabled={rows.length === 0}>
           Download CSV
         </button>
       </div>
 
       <div className="vp-selector-section">
         <div className="vp-selector-header">
-          <span className="vp-selector-label">Select VPs ({selectedVPs.size} of {vps.length} selected):</span>
+          <span className="vp-selector-label">
+            Select Categories ({selectedGroups.size} of {displayGroups.length} selected):
+          </span>
           <div className="vp-selector-actions">
             <button className="link-button" onClick={selectAll}>Select All</button>
             <span className="separator">|</span>
@@ -123,18 +160,26 @@ export default function VPReport({ data }) {
           </div>
         </div>
         <div className="vp-checkbox-grid">
-          {vps.map(vp => (
-            <label key={vp.email} className={`vp-checkbox-label${vp.notFound ? ' vp-not-found' : ''}`}>
+          {displayGroups.map(group => (
+            <label key={group.id} className={`vp-checkbox-label${group.notFound ? ' vp-not-found' : ''}`}>
               <input
                 type="checkbox"
-                checked={selectedVPs.has(vp.email)}
-                onChange={() => toggleVP(vp.email)}
+                checked={selectedGroups.has(group.id)}
+                onChange={() => toggleGroup(group.id)}
               />
-              <span className="vp-name">{vp.displayName}</span>
-              {vp.notFound
-                ? <span className="vp-missing" title="Name not matched in this CSV">not in data</span>
-                : <span className="vp-count">({vp.allReports.size + 1} total)</span>
-              }
+              <span className="vp-name">{group.label}</span>
+              {group.notFound ? (
+                <span className="vp-missing" title="Name not matched in this CSV">not in data</span>
+              ) : group.id === ADMIN_GROUP_ID ? (
+                <span className="vp-count">({group.adminEmployeeCount} employees, {group.adminVPCount} VPs)</span>
+              ) : (
+                <span className="vp-count">
+                  {(() => {
+                    const vp = vps.find(v => v.email === group.id);
+                    return vp ? `(${vp.allReports.size + 1} total)` : '';
+                  })()}
+                </span>
+              )}
             </label>
           ))}
         </div>
@@ -150,7 +195,7 @@ export default function VPReport({ data }) {
               <thead>
                 <tr>
                   <th>Employee Name</th>
-                  <th>VP</th>
+                  <th>Category</th>
                 </tr>
               </thead>
               <tbody>
@@ -165,7 +210,7 @@ export default function VPReport({ data }) {
           </div>
         ) : (
           <div className="info-message">
-            <p>No employees to display. Select at least one VP above.</p>
+            <p>No employees to display. Select at least one category above.</p>
           </div>
         )}
       </div>

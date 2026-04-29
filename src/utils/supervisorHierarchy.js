@@ -277,7 +277,7 @@ export const VP_NAMES = [
   'Paula Corrigan-Halpern',
   'Seth Baker',
   'Mary Grawe',
-  'Emily Medere',
+  'Emily Medre',
   'Gabby Hidalgo',
   'Melinda Smith',
   'Eric Brenner',
@@ -304,6 +304,7 @@ export function getVPsAndMapping(hierarchy) {
     }
 
     if (found) {
+      found._vpCanonicalName = vpName; // tag so component can identify by list name
       vps.push(found);
       // VP maps to themselves
       if (!employeeToVP.has(found.email)) employeeToVP.set(found.email, new Set());
@@ -318,6 +319,7 @@ export function getVPsAndMapping(hierarchy) {
       const stub = {
         email: `__vp_stub__${vpName}`,
         displayName: vpName,
+        _vpCanonicalName: vpName,
         supervisors: [],
         directReports: new Set(),
         allReports: new Set(),
