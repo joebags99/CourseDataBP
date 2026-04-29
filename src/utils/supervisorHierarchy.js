@@ -268,6 +268,41 @@ export function buildHierarchy(rawData) {
 }
 
 /**
+ * Identify VP-level employees (root nodes with no supervisor in the data)
+ * and return a mapping of every employee email -> their VP's email.
+ * VPs map to themselves.
+ * @param {Object} hierarchy - Hierarchy data from buildHierarchy
+ * @returns {{ vps: Array, employeeToVP: Map<string, string> }}
+ */
+export function getVPsAndMapping(hierarchy) {
+  const vps = [];
+
+  // Root nodes = employees with no supervisors AND at least one direct report
+  hierarchy.employeeMap.forEach((employee) => {
+    if (employee.supervisors.length === 0 && employee.directReports.size > 0) {
+      vps.push(employee);
+    }
+  });
+
+  // Sort VPs by display name
+  vps.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  // Build employee -> VP map
+  const employeeToVP = new Map();
+  vps.forEach(vp => {
+    employeeToVP.set(vp.email, vp.email); // VP maps to themselves
+    vp.allReports.forEach(reportEmail => {
+      // Only assign if not already assigned (handles edge-case overlaps)
+      if (!employeeToVP.has(reportEmail)) {
+        employeeToVP.set(reportEmail, vp.email);
+      }
+    });
+  });
+
+  return { vps, employeeToVP };
+}
+
+/**
  * Get direct reports for a supervisor
  * @param {string} supervisorEmail - Email of the supervisor
  * @param {Object} hierarchy - Hierarchy data from buildHierarchy

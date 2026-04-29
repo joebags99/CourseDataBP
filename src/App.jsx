@@ -8,6 +8,7 @@ import NewHires from './components/NewHires';
 import SupervisorReports from './components/SupervisorReports';
 import CostCenterReports from './components/CostCenterReports';
 import IndividualReport from './components/IndividualReport';
+import VPReport from './components/VPReport';
 import DataDisclaimer from './components/DataDisclaimer';
 import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './utils/courseGrouping';
 import { calculateSummaryStats, filterByDateRange } from './utils/analytics';
@@ -82,6 +83,7 @@ function App() {
     { id: 'supervisors', label: 'Supervisor Reports', icon: '👔' },
     { id: 'costcenters', label: 'Cost Center Reports', icon: '🏢' },
     { id: 'individual', label: 'Individual Report', icon: '👤' },
+    { id: 'vpreport', label: 'VP Report', icon: '🏛️' },
     { id: 'yoy', label: 'Year-over-Year', icon: '📈' },
     { id: 'trends', label: 'Trends', icon: '📉' },
     { id: 'staff', label: 'Staff Analysis', icon: '👥' }
@@ -235,6 +237,12 @@ function App() {
               {activeTab === 'individual' && (
                 <div className="tab-content">
                   <IndividualReport data={filteredData} />
+                </div>
+              )}
+
+              {activeTab === 'vpreport' && (
+                <div className="tab-content">
+                  <VPReport data={filteredData} />
                 </div>
               )}
 

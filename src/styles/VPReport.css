@@ -1,0 +1,232 @@
+.vp-report {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.vp-report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.vp-report-header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.vp-report-description {
+  margin: 0;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+/* VP Selector */
+.vp-selector-section {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.vp-selector-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.vp-selector-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.vp-selector-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.separator {
+  color: var(--text-secondary, #999);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent-color, #4361ee);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  opacity: 0.75;
+}
+
+.vp-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.vp-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.vp-checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.vp-name {
+  font-weight: 500;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.vp-count {
+  color: var(--text-secondary, #888);
+  font-size: 0.82rem;
+}
+
+/* Table */
+.vp-table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vp-table-meta {
+  font-size: 0.87rem;
+  color: var(--text-secondary, #666);
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.vp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.vp-table thead tr {
+  background: var(--accent-color, #4361ee);
+}
+
+.vp-table th {
+  padding: 0.7rem 1rem;
+  text-align: left;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.vp-table tbody tr {
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+  transition: background 0.15s;
+}
+
+.vp-table tbody tr:hover {
+  background: var(--hover-bg, #f5f7ff);
+}
+
+.vp-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.vp-table td {
+  padding: 0.6rem 1rem;
+  color: var(--text-primary, #333);
+}
+
+.vp-cell {
+  color: var(--accent-color, #4361ee);
+  font-weight: 500;
+}
+
+/* Export button — reuse pattern from SupervisorReports */
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent-color, #4361ee);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.export-button:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.export-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Info message */
+.info-message {
+  background: var(--card-bg, #fff8e1);
+  border: 1px solid var(--border-color, #ffe082);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  color: var(--text-secondary, #555);
+  font-size: 0.9rem;
+}
+
+.info-message p {
+  margin: 0;
+}
+
+/* Dark mode */
+.dark-mode .vp-report-header h2 {
+  color: #e0e0e0;
+}
+
+.dark-mode .vp-selector-section {
+  background: #1e2035;
+  border-color: #333;
+}
+
+.dark-mode .vp-name {
+  color: #e0e0e0;
+}
+
+.dark-mode .vp-table tbody tr:hover {
+  background: #252840;
+}
+
+.dark-mode .vp-table td {
+  color: #d0d0d0;
+}
+
+.dark-mode .table-container {
+  border-color: #333;
+}
+
+.dark-mode .vp-table tbody tr {
+  border-bottom-color: #2e2e45;
+}
