@@ -305,11 +305,13 @@ export function getVPsAndMapping(hierarchy) {
 
     if (found) {
       vps.push(found);
-      employeeToVP.set(found.email, found.email);
+      // VP maps to themselves
+      if (!employeeToVP.has(found.email)) employeeToVP.set(found.email, new Set());
+      employeeToVP.get(found.email).add(found.email);
+      // Accumulate all VPs for each report — no early-exit so overlaps are captured
       found.allReports.forEach(reportEmail => {
-        if (!employeeToVP.has(reportEmail)) {
-          employeeToVP.set(reportEmail, found.email);
-        }
+        if (!employeeToVP.has(reportEmail)) employeeToVP.set(reportEmail, new Set());
+        employeeToVP.get(reportEmail).add(found.email);
       });
     } else {
       // VP not in the enrollment data — show them as a stub so they appear in the selector

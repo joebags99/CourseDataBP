@@ -38,23 +38,33 @@ export default function VPReport({ data }) {
   const selectAll = () => setSelectedVPs(new Set(vps.map(v => v.email)));
   const deselectAll = () => setSelectedVPs(new Set());
 
-  // Build rows: every employee (with data) whose VP is selected
+  // Build rows: every employee (with data) who rolls up to at least one selected VP
   const rows = useMemo(() => {
     if (!hierarchy) return [];
 
     const result = [];
     hierarchy.employeeMap.forEach((employee, email) => {
-      if (!employee.hasData) return; // skip placeholders with no enrollment data
+      if (!employee.hasData) return;
 
-      const vpEmail = employeeToVP.get(email);
-      if (!vpEmail) return; // unassigned (no VP chain found)
-      if (!selectedVPs.has(vpEmail)) return;
+      const vpEmails = employeeToVP.get(email); // Set<string> | undefined
+      if (!vpEmails) return;
 
-      const vp = hierarchy.employeeMap.get(vpEmail);
+      // Collect only the selected VPs this employee belongs to
+      const matchingVPNames = [];
+      vpEmails.forEach(vpEmail => {
+        if (selectedVPs.has(vpEmail)) {
+          const vp = hierarchy.employeeMap.get(vpEmail);
+          matchingVPNames.push(vp ? vp.displayName : vpEmail);
+        }
+      });
+
+      if (matchingVPNames.length === 0) return;
+
+      matchingVPNames.sort();
       result.push({
         name: employee.displayName,
         email: employee.isPlaceholder ? '' : employee.email,
-        vpName: vp ? vp.displayName : vpEmail,
+        vpName: matchingVPNames.join(', '),
       });
     });
 
