@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { buildHierarchy, getAllSupervisors, getSupervisorReport } from '../utils/supervisorHierarchy';
 import { exportSupervisorReportToExcel, exportDirectReportsBySupervisor } from '../utils/excelExporter';
@@ -36,38 +36,49 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
     return Array.from(coursesSet).sort();
   }, [hierarchy]);
 
-  // Initialize selectedCourses to all courses when hierarchy changes
-  useMemo(() => {
-    if (allCourses.length > 0 && selectedCourses.length === 0) {
+  // Initialize selectedCourses when allCourses first becomes available
+  useEffect(() => {
+    if (allCourses.length > 0) {
       setSelectedCourses(allCourses);
     }
   }, [allCourses]);
 
-  // Filter courses based on selection
-  const filterCourses = (reportData) => {
-    if (!reportData || selectedCourses.length === 0) return reportData;
-
-    return {
-      ...reportData,
-      teamMembers: reportData.teamMembers.map(member => ({
-        ...member,
-        courses: member.courses.filter(course => selectedCourses.includes(course.course)),
-        totalCourses: member.courses.filter(course => selectedCourses.includes(course.course)).length,
-        completedCourses: member.courses.filter(course => selectedCourses.includes(course.course) && course.percentCompleted === 100).length,
-        completionRate: (() => {
-          const filteredCourses = member.courses.filter(course => selectedCourses.includes(course.course));
-          const completedFiltered = filteredCourses.filter(c => c.percentCompleted === 100).length;
-          return filteredCourses.length > 0 ? (completedFiltered / filteredCourses.length * 100).toFixed(1) : 0;
-        })()
-      }))
-    };
-  };
-
-  // Get selected supervisor's report
+  // Get selected supervisor's report with course filter applied
   const supervisorReport = useMemo(() => {
     if (!hierarchy || !selectedSupervisor) return null;
     const report = getSupervisorReport(selectedSupervisor, hierarchy, cascading);
-    return filterCourses(report);
+    if (!report) return null;
+
+    const selectedSet = new Set(selectedCourses);
+
+    const filteredTeamMembers = report.teamMembers.map(member => {
+      const courses = member.courses.filter(c => selectedSet.has(c.course));
+      const totalCourses = courses.length;
+      const completedCourses = courses.filter(c => c.percentCompleted === 100).length;
+      const completionRate = totalCourses > 0
+        ? (completedCourses / totalCourses * 100).toFixed(1)
+        : 0;
+      return { ...member, courses, totalCourses, completedCourses, completionRate };
+    });
+
+    // Recompute summary stats from filtered data
+    const membersWithData = filteredTeamMembers.filter(m => m.hasData);
+    const totalEnrollments = membersWithData.reduce((sum, m) => sum + m.totalCourses, 0);
+    const totalCompletions = membersWithData.reduce((sum, m) => sum + m.completedCourses, 0);
+    const overallCompletionRate = totalEnrollments > 0
+      ? (totalCompletions / totalEnrollments * 100).toFixed(1)
+      : 0;
+
+    return {
+      ...report,
+      teamMembers: filteredTeamMembers,
+      statistics: {
+        ...report.statistics,
+        totalEnrollments,
+        totalCompletions,
+        overallCompletionRate,
+      },
+    };
   }, [hierarchy, selectedSupervisor, cascading, selectedCourses]);
 
   // Sort team members
@@ -129,14 +140,23 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const handleExportAllSupervisors = () => {
     if (!hierarchy || supervisors.length === 0) return;
 
-    // Generate filtered reports for all supervisors (always direct reports only)
+    const selectedSet = new Set(selectedCourses);
     const allReports = supervisors.map(sup => {
-      const report = getSupervisorReport(sup.email, hierarchy, false); // Direct reports only
-      return filterCourses(report);
-    });
+      const report = getSupervisorReport(sup.email, hierarchy, false);
+      if (!report) return null;
+      const filteredTeamMembers = report.teamMembers.map(member => {
+        const courses = member.courses.filter(c => selectedSet.has(c.course));
+        const totalCourses = courses.length;
+        const completedCourses = courses.filter(c => c.percentCompleted === 100).length;
+        const completionRate = totalCourses > 0
+          ? (completedCourses / totalCourses * 100).toFixed(1)
+          : 0;
+        return { ...member, courses, totalCourses, completedCourses, completionRate };
+      });
+      return { ...report, teamMembers: filteredTeamMembers };
+    }).filter(Boolean);
 
-    const filename = 'direct-reports-by-supervisor';
-    exportDirectReportsBySupervisor(allReports, filename);
+    exportDirectReportsBySupervisor(allReports, 'direct-reports-by-supervisor');
   };
 
   if (!hierarchy) {
