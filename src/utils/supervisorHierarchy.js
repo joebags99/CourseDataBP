@@ -267,6 +267,75 @@ export function buildHierarchy(rawData) {
   };
 }
 
+// Canonical list of VP-level employees, matched by name against the loaded data.
+export const VP_NAMES = [
+  'Angelica Stapert',
+  'Kathryn Mattie',
+  'Mario Perez',
+  'Matea Varvodic',
+  'Melissa Schlinger',
+  'Paula Corrigan-Halpern',
+  'Seth Baker',
+  'Mary Grawe',
+  'Emily Medere',
+  'Gabby Hidalgo',
+  'Melinda Smith',
+  'Eric Brenner',
+];
+
+/**
+ * Identify VPs by name (see VP_NAMES) and return a mapping of every
+ * employee email -> the email key of their VP.  VPs map to themselves.
+ * @param {Object} hierarchy - Hierarchy data from buildHierarchy
+ * @returns {{ vps: Array, employeeToVP: Map<string, string> }}
+ */
+export function getVPsAndMapping(hierarchy) {
+  const vps = [];
+  const employeeToVP = new Map();
+
+  VP_NAMES.forEach(vpName => {
+    // Find this VP in the employee map using the same flexible name matching
+    let found = null;
+    for (const [, employee] of hierarchy.employeeMap) {
+      if (namesMatch(employee.displayName, vpName)) {
+        found = employee;
+        break;
+      }
+    }
+
+    if (found) {
+      found._vpCanonicalName = vpName; // tag so component can identify by list name
+      vps.push(found);
+      // VP maps to themselves
+      if (!employeeToVP.has(found.email)) employeeToVP.set(found.email, new Set());
+      employeeToVP.get(found.email).add(found.email);
+      // Accumulate all VPs for each report — no early-exit so overlaps are captured
+      found.allReports.forEach(reportEmail => {
+        if (!employeeToVP.has(reportEmail)) employeeToVP.set(reportEmail, new Set());
+        employeeToVP.get(reportEmail).add(found.email);
+      });
+    } else {
+      // VP not in the enrollment data — show them as a stub so they appear in the selector
+      const stub = {
+        email: `__vp_stub__${vpName}`,
+        displayName: vpName,
+        _vpCanonicalName: vpName,
+        supervisors: [],
+        directReports: new Set(),
+        allReports: new Set(),
+        hasData: false,
+        isPlaceholder: true,
+        notFound: true,
+      };
+      vps.push(stub);
+    }
+  });
+
+  vps.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  return { vps, employeeToVP };
+}
+
 /**
  * Get direct reports for a supervisor
  * @param {string} supervisorEmail - Email of the supervisor

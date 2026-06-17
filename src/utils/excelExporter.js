@@ -663,8 +663,44 @@ export function exportIndividualReportToExcel(reportData) {
 }
 
 /**
+ * Build an Overview sheet row array for one or more cost center reports.
+ * Columns: Cost Center, Region, Employees, Enrollments, Completions, Completion Rate
+ * @param {Array} reports - Array of getCostCenterReport results
+ * @returns {Object} { sheet, colWidths }
+ */
+function buildCostCenterOverviewSheet(reports) {
+  const overviewRows = [
+    ['Cost Center Overview'],
+    ['Generated:', new Date().toLocaleString()],
+    [''],
+    ['Cost Center', 'Region', 'Employees', 'Enrollments', 'Completions', 'Completion Rate'],
+  ];
+
+  const sorted = [...reports].sort((a, b) => a.program.programName.localeCompare(b.program.programName));
+
+  sorted.forEach(r => {
+    overviewRows.push([
+      r.program.programName,
+      r.program.regionName || '',
+      r.statistics.totalEmployees,
+      r.statistics.totalEnrollments,
+      r.statistics.totalCompletions,
+      `${r.statistics.overallCompletionRate}%`,
+    ]);
+  });
+
+  const sheet = XLSX.utils.aoa_to_sheet(overviewRows);
+  styleHeaders(sheet, 'A4:F4');
+  sheet['!cols'] = [
+    { wch: 40 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }
+  ];
+  sheet['!autofilter'] = { ref: `A4:F${overviewRows.length}` };
+  return sheet;
+}
+
+/**
  * Export a single cost center report to Excel
- * Sheets: Summary, Staff & Courses, List View
+ * Sheets: Overview, Staff & Courses, List View
  * @param {Object} reportData - From getCostCenterReport
  */
 export function exportCostCenterReportToExcel(reportData) {
@@ -672,6 +708,10 @@ export function exportCostCenterReportToExcel(reportData) {
 
   const workbook = XLSX.utils.book_new();
   const { program, employees, statistics } = reportData;
+
+  // --- Overview Sheet (single cost center) ---
+  const overviewSheet = buildCostCenterOverviewSheet([reportData]);
+  XLSX.utils.book_append_sheet(workbook, overviewSheet, 'Overview');
 
   // --- Summary Sheet ---
   const summaryData = [
@@ -785,6 +825,10 @@ export function exportAllCostCentersToExcel(allReports) {
   if (!allReports || allReports.length === 0) return;
 
   const workbook = XLSX.utils.book_new();
+
+  // --- Overview Sheet (one row per cost center) ---
+  const overviewSheet = buildCostCenterOverviewSheet(allReports);
+  XLSX.utils.book_append_sheet(workbook, overviewSheet, 'Overview');
 
   // --- Grouped Sheet ---
   const rows = [];
