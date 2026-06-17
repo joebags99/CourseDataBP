@@ -1,0 +1,403 @@
+.leadership-report {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+}
+
+.leadership-report .info-message {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.leadership-report .info-message p {
+  margin: var(--spacing-sm) 0;
+  color: var(--text-secondary);
+}
+
+.leadership-report .controls-section {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.leadership-report .control-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.leadership-report .control-group label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.cascade-select {
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cascade-select:hover {
+  border-color: var(--primary-blue);
+}
+
+.cascade-select:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 136, 254, 0.1);
+}
+
+.leadership-report .toggle-description {
+  margin: var(--spacing-xs) 0 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.leadership-report .course-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.leadership-report .filter-toggle-button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+}
+
+.leadership-report .filter-toggle-button:hover {
+  background: var(--bg-primary);
+  border-color: var(--primary-blue);
+}
+
+.leadership-report .course-filter-panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.leadership-report .course-filter-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.leadership-report .filter-action-button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.leadership-report .filter-action-button:hover {
+  background: var(--primary-blue);
+  color: white;
+  border-color: var(--primary-blue);
+}
+
+.leadership-report .course-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--spacing-sm);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.leadership-report .course-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.leadership-report .course-checkbox-label:hover {
+  background: var(--bg-tertiary);
+}
+
+.leadership-report .course-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.leadership-report .course-checkbox-label span {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.leadership-report .export-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.leadership-report .export-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 0.95rem;
+}
+
+.leadership-report .export-button:hover {
+  background: #0070d1;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.report-summary {
+  margin-bottom: var(--spacing-xl);
+}
+
+.report-summary h2 {
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  font-size: 1.75rem;
+}
+
+.leadership-report .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.leadership-report .stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.leadership-report .stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+  margin-bottom: var(--spacing-xs);
+}
+
+.leadership-report .stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leaders-section,
+.breakdown-section {
+  margin-top: var(--spacing-xl);
+}
+
+.breakdown-section h3 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.breakdown-section h4 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin: var(--spacing-lg) 0 var(--spacing-sm) 0;
+}
+
+.leadership-report .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.leadership-report .section-header h3 {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.leadership-report .sort-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.leadership-report .sort-controls label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.leadership-report .sort-controls select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.selection-hint {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.leadership-report .table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.leaders-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaders-table th {
+  background: var(--bg-tertiary);
+  padding: var(--spacing-md);
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leaders-table th.course-col {
+  text-align: center;
+}
+
+.leaders-table td {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.leaders-table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+.leaders-table .name-cell {
+  font-weight: 600;
+}
+
+.leaders-table .supervisor-cell {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.leaders-table .center-cell {
+  text-align: center;
+}
+
+.completion-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.completion-badge.completion-high {
+  background: rgba(34, 197, 94, 0.2);
+  color: #16a34a;
+}
+
+.completion-badge.completion-medium {
+  background: rgba(234, 179, 8, 0.2);
+  color: #ca8a04;
+}
+
+.completion-badge.completion-low {
+  background: rgba(249, 115, 22, 0.2);
+  color: #ea580c;
+}
+
+.completion-badge.completion-none {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.status-pill {
+  display: inline-block;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.status-pill.complete {
+  background: rgba(34, 197, 94, 0.2);
+  color: #16a34a;
+}
+
+.status-pill.incomplete {
+  background: rgba(234, 179, 8, 0.2);
+  color: #ca8a04;
+}
+
+.status-pill.missing {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.status-pill.na {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 768px) {
+  .leadership-report .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .leadership-report .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

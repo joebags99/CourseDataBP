@@ -989,3 +989,110 @@ export function exportTeamRosterToExcel(allTeamMembers, filename = 'team-roster'
   const excelFilename = `TrainingReport_Team_${getDateString()}_Roster.xlsx`;
   XLSX.writeFile(workbook, excelFilename);
 }
+
+/**
+ * Render a leader's per-course status as a short cell label.
+ */
+function statusLabel(status) {
+  switch (status) {
+    case 'complete': return 'Complete';
+    case 'incomplete': return 'In Progress';
+    case 'missing': return 'Not Started';
+    case 'na': return 'N/A';
+    default: return '';
+  }
+}
+
+/**
+ * Export the Leadership Compliance report to Excel.
+ *
+ * Produces three sheets:
+ *   1. "All Leaders"      - every leader (or current filter) with per-tracked-course status
+ *   2. "Selected Detail"  - the selected/filtered leaders, per-course status grid
+ *   3. "Cascade Roll-up"  - selected leaders with downstream leader counts + branch compliance
+ *
+ * @param {Object} reportData - { leaders, trackedCourses } (already filtered for page 1)
+ * @param {Object} selection - { detailLeaders: Array, rollup: Array } drill-down for page 2
+ * @param {string} [filename] - optional base filename (without extension)
+ */
+export function exportLeadershipReportToExcel(reportData, selection, filename) {
+  if (!reportData || !reportData.leaders) {
+    console.error('No leadership report data provided');
+    return;
+  }
+
+  const { leaders, trackedCourses } = reportData;
+  const { detailLeaders = [], rollup = [] } = selection || {};
+
+  const workbook = XLSX.utils.book_new();
+
+  const formatHire = (d) => (d ? new Date(d).toLocaleDateString() : '—');
+
+  // Column letter for the last column given a count (supports up to 26+ via XLSX helper).
+  const lastCol = (count) => XLSX.utils.encode_col(count - 1);
+
+  // ---- Sheet 1: All Leaders ----
+  const leaderHeader = ['Leader', 'Email', 'Supervisor(s)', 'Hire Date', ...trackedCourses, 'Compliance %'];
+  const leaderRows = [
+    leaderHeader,
+    ...leaders.map(l => [
+      l.displayName,
+      l.isPlaceholder ? '—' : l.email,
+      l.supervisors.map(s => s.name).join(', ') || '—',
+      formatHire(l.hireDate),
+      ...trackedCourses.map(c => statusLabel(l.courseStatus[c].status)),
+      `${l.complianceRate}%`
+    ])
+  ];
+  const allSheet = XLSX.utils.aoa_to_sheet(leaderRows);
+  allSheet['!cols'] = [
+    { wch: 28 }, { wch: 30 }, { wch: 28 }, { wch: 14 },
+    ...trackedCourses.map(() => ({ wch: 18 })),
+    { wch: 14 }
+  ];
+  styleHeaders(allSheet, `A1:${lastCol(leaderHeader.length)}1`);
+  allSheet['!autofilter'] = { ref: `A1:${lastCol(leaderHeader.length)}${leaderRows.length}` };
+  XLSX.utils.book_append_sheet(workbook, allSheet, 'All Leaders');
+
+  // ---- Sheet 2: Selected Detail ----
+  const detailHeader = ['Leader', 'Hire Date', ...trackedCourses, 'Compliance %'];
+  const detailRows = [
+    detailHeader,
+    ...detailLeaders.map(l => [
+      l.displayName,
+      formatHire(l.hireDate),
+      ...trackedCourses.map(c => statusLabel(l.courseStatus[c].status)),
+      `${l.complianceRate}%`
+    ])
+  ];
+  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+  detailSheet['!cols'] = [
+    { wch: 28 }, { wch: 14 },
+    ...trackedCourses.map(() => ({ wch: 18 })),
+    { wch: 14 }
+  ];
+  styleHeaders(detailSheet, `A1:${lastCol(detailHeader.length)}1`);
+  detailSheet['!autofilter'] = { ref: `A1:${lastCol(detailHeader.length)}${detailRows.length}` };
+  XLSX.utils.book_append_sheet(workbook, detailSheet, 'Selected Detail');
+
+  // ---- Sheet 3: Cascade Roll-up ----
+  const rollupHeader = ['Leader', 'Own Compliance %', 'Downstream Leaders', 'Branch Leaders', 'Branch Compliance %'];
+  const rollupRows = [
+    rollupHeader,
+    ...rollup.map(r => [
+      r.displayName,
+      `${r.ownComplianceRate}%`,
+      r.downstreamLeaderCount,
+      r.branchLeaderCount,
+      `${r.branchComplianceRate}%`
+    ])
+  ];
+  const rollupSheet = XLSX.utils.aoa_to_sheet(rollupRows);
+  rollupSheet['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 20 }];
+  styleHeaders(rollupSheet, 'A1:E1');
+  rollupSheet['!autofilter'] = { ref: `A1:E${rollupRows.length}` };
+  XLSX.utils.book_append_sheet(workbook, rollupSheet, 'Cascade Roll-up');
+
+  const base = filename ? sanitizeName(filename) : `LeadershipCompliance_${getDateString()}`;
+  XLSX.writeFile(workbook, `${base}.xlsx`);
+}
