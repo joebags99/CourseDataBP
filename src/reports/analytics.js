@@ -1,5 +1,6 @@
-import { format, getYear, getMonth, startOfMonth } from 'date-fns';
-import { courseMatchesBase } from './courseGrouping';
+import { format, getYear, startOfMonth } from 'date-fns';
+import { aggregateByEmail } from '../data/aggregate';
+import { buildDisplayName, isCourseComplete, completionRate } from '../data/dataModel';
 
 /**
  * Calculate year-over-year statistics for courses
@@ -43,7 +44,7 @@ export function calculateYearOverYear(data, courseGroups, groupVersions = true) 
 
       stats[courseName][enrollYear].totalEnrollments++;
 
-      if (record.percentCompleted === 100 || record.dateCompleted) {
+      if (isCourseComplete(record)) {
         stats[courseName][enrollYear].totalCompletions++;
 
         if (record.daysToComplete !== null) {
@@ -58,9 +59,9 @@ export function calculateYearOverYear(data, courseGroups, groupVersions = true) 
   Object.keys(stats).forEach(course => {
     Object.keys(stats[course]).forEach(year => {
       const yearStats = stats[course][year];
-      yearStats.completionRate = yearStats.totalEnrollments > 0
-        ? Math.round((yearStats.totalCompletions / yearStats.totalEnrollments) * 100)
-        : 0;
+      yearStats.completionRate = completionRate(
+        yearStats.totalCompletions, yearStats.totalEnrollments, { mode: 'int' }
+      );
 
       yearStats.averageDaysToComplete = yearStats.daysToCompleteCount > 0
         ? Math.round(yearStats.daysToCompleteSum / yearStats.daysToCompleteCount)
@@ -139,7 +140,7 @@ export function identifyLowCompletionCourses(data, courseGroups, threshold = 70,
 
     courseStats[courseName].enrollments++;
 
-    if (record.percentCompleted === 100 || record.dateCompleted) {
+    if (isCourseComplete(record)) {
       courseStats[courseName].completions++;
     }
   });
@@ -147,9 +148,7 @@ export function identifyLowCompletionCourses(data, courseGroups, threshold = 70,
   // Calculate completion rates
   Object.keys(courseStats).forEach(course => {
     const stats = courseStats[course];
-    stats.completionRate = stats.enrollments > 0
-      ? Math.round((stats.completions / stats.enrollments) * 100)
-      : 0;
+    stats.completionRate = completionRate(stats.completions, stats.enrollments, { mode: 'int' });
   });
 
   // Filter and sort
@@ -166,57 +165,44 @@ export function identifyLowCompletionCourses(data, courseGroups, threshold = 70,
  * @returns {Array} Staff completion records
  */
 export function getStaffCompletionData(data, courseGroups, groupVersions = true) {
-  const staffData = {};
+  const baseName = (record) => groupVersions
+    ? courseGroups[record.course]?.baseName || record.course
+    : record.course;
 
-  data.forEach(record => {
-    const staffKey = record.email;
-
-    if (!staffData[staffKey]) {
-      staffData[staffKey] = {
-        email: record.email,
-        legalFirstname: record.legalFirstname,
-        preferredFirstname: record.preferredFirstname,
-        lastname: record.lastname,
-        displayName: `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`,
-        courses: [],
-        totalEnrollments: 0,
-        totalCompletions: 0,
-        completionRate: 0
-      };
-    }
-
-    const courseName = groupVersions
-      ? courseGroups[record.course]?.baseName || record.course
-      : record.course;
-
-    staffData[staffKey].courses.push({
-      course: courseName,
+  const staffMap = aggregateByEmail(data, {
+    // NOTE: keyed by the raw email (not lowercased) to preserve original behavior
+    keyOf: (record) => record.email,
+    identity: (record) => ({
+      email: record.email,
+      legalFirstname: record.legalFirstname,
+      preferredFirstname: record.preferredFirstname,
+      lastname: record.lastname,
+      displayName: buildDisplayName(record),
+      totalEnrollments: 0,
+      totalCompletions: 0,
+      completionRate: 0
+    }),
+    mapCourse: (record) => ({
+      course: baseName(record),
       originalCourse: record.course,
       percentCompleted: record.percentCompleted,
       enrolledAt: record.enrolledAt,
       dateCompleted: record.dateCompleted,
       daysToComplete: record.daysToComplete,
-      isCompleted: record.percentCompleted === 100 || record.dateCompleted !== null
-    });
-
-    staffData[staffKey].totalEnrollments++;
-
-    if (record.percentCompleted === 100 || record.dateCompleted) {
-      staffData[staffKey].totalCompletions++;
+      isCompleted: isCourseComplete(record)
+    }),
+    onRecord: (staff, record) => {
+      staff.totalEnrollments++;
+      if (isCourseComplete(record)) staff.totalCompletions++;
     }
   });
 
-  // Calculate completion rates
-  Object.keys(staffData).forEach(key => {
-    const staff = staffData[key];
-    staff.completionRate = staff.totalEnrollments > 0
-      ? Math.round((staff.totalCompletions / staff.totalEnrollments) * 100)
-      : 0;
+  const staffList = Array.from(staffMap.values());
+  staffList.forEach(staff => {
+    staff.completionRate = completionRate(staff.totalCompletions, staff.totalEnrollments, { mode: 'int' });
   });
 
-  return Object.values(staffData).sort((a, b) =>
-    a.displayName.localeCompare(b.displayName)
-  );
+  return staffList.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 /**
@@ -231,10 +217,8 @@ export function calculateSummaryStats(data, courseGroups) {
     data.map(r => courseGroups[r.course]?.baseName || r.course)
   );
 
-  const completions = data.filter(r => r.percentCompleted === 100 || r.dateCompleted);
-  const overallCompletionRate = data.length > 0
-    ? Math.round((completions.length / data.length) * 100)
-    : 0;
+  const completions = data.filter(r => isCourseComplete(r));
+  const overallCompletionRate = completionRate(completions.length, data.length, { mode: 'int' });
 
   const daysToComplete = completions
     .filter(r => r.daysToComplete !== null)

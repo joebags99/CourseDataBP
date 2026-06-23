@@ -1,3 +1,5 @@
+import { buildDisplayName, mapCourseRecord, isCourseComplete, completionRate } from './dataModel';
+
 /**
  * Parse the UKG "Program" field string into structured data.
  * Format: "PROGRAM - 70200 - 70200 SIBLING FOSTER CARE,REGION - 70 - 70 NORTHERN REGION"
@@ -77,12 +79,11 @@ export function buildCostCenterData(rawData) {
 
     const program = programMap.get(key);
     const email = record.email.toLowerCase();
-    const displayName = `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`.trim();
 
     if (!program.employees.has(email)) {
       program.employees.set(email, {
         email,
-        displayName,
+        displayName: buildDisplayName(record, { trim: true }),
         legalFirstname: record.legalFirstname,
         preferredFirstname: record.preferredFirstname,
         lastname: record.lastname,
@@ -91,14 +92,7 @@ export function buildCostCenterData(rawData) {
       });
     }
 
-    program.employees.get(email).courses.push({
-      course: record.course,
-      percentCompleted: record.percentCompleted,
-      enrolledAt: record.enrolledAt,
-      dateCompleted: record.dateCompleted,
-      lastHireDate: record.lastHireDate,
-      daysToComplete: record.daysToComplete
-    });
+    program.employees.get(email).courses.push(mapCourseRecord(record));
   });
 
   return programMap;
@@ -178,9 +172,6 @@ export function getMultiCostCenterReport(programKeys, programMap, selectedCourse
 
   const totalEnrollments = allEmployees.reduce((sum, e) => sum + e.totalCourses, 0);
   const totalCompletions = allEmployees.reduce((sum, e) => sum + e.completedCourses, 0);
-  const overallCompletionRate = totalEnrollments > 0
-    ? (totalCompletions / totalEnrollments * 100).toFixed(1)
-    : 0;
 
   return {
     programs: reports.map(r => r.program),
@@ -189,7 +180,7 @@ export function getMultiCostCenterReport(programKeys, programMap, selectedCourse
       totalEmployees: allEmployees.length,
       totalEnrollments,
       totalCompletions,
-      overallCompletionRate
+      overallCompletionRate: completionRate(totalCompletions, totalEnrollments, { mode: 'fixed1' })
     }
   };
 }
@@ -213,10 +204,7 @@ export function getCostCenterReport(programKey, programMap, selectedCourses = []
       : emp.courses;
 
     const totalCourses = courses.length;
-    const completedCourses = courses.filter(c => c.percentCompleted === 100).length;
-    const completionRate = totalCourses > 0
-      ? (completedCourses / totalCourses * 100).toFixed(1)
-      : 0;
+    const completedCourses = courses.filter(c => isCourseComplete(c, { strict: true })).length;
 
     return {
       email: emp.email,
@@ -227,16 +215,13 @@ export function getCostCenterReport(programKey, programMap, selectedCourses = []
       courses,
       totalCourses,
       completedCourses,
-      completionRate,
+      completionRate: completionRate(completedCourses, totalCourses, { mode: 'fixed1' }),
       hasData: emp.courses.length > 0
     };
   }).sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   const totalEnrollments = employeeData.reduce((sum, e) => sum + e.totalCourses, 0);
   const totalCompletions = employeeData.reduce((sum, e) => sum + e.completedCourses, 0);
-  const overallCompletionRate = totalEnrollments > 0
-    ? (totalCompletions / totalEnrollments * 100).toFixed(1)
-    : 0;
 
   return {
     program: {
@@ -251,7 +236,7 @@ export function getCostCenterReport(programKey, programMap, selectedCourses = []
       totalEmployees: employeeData.length,
       totalEnrollments,
       totalCompletions,
-      overallCompletionRate
+      overallCompletionRate: completionRate(totalCompletions, totalEnrollments, { mode: 'fixed1' })
     }
   };
 }

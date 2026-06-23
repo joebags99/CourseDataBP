@@ -1,12 +1,14 @@
-import { getYear } from 'date-fns';
+import { aggregateByEmail } from '../data/aggregate';
+import { buildDisplayName, isCourseComplete, completionRate } from '../data/dataModel';
+import {
+  ONBOARDING_REQUIRED_COURSES,
+  isOnboardingRequiredCourse
+} from '../config/onboarding';
 import {
   calculateDaysSinceHire,
   getHireYear,
   isWithinOnboardingWindow,
-  isPastOnboardingWindow,
-  isRequiredCourse,
-  REQUIRED_COURSES,
-  ONBOARDING_WINDOW_DAYS
+  isPastOnboardingWindow
 } from './hireDate';
 
 /**
@@ -17,61 +19,55 @@ import {
  * @returns {Array} Staff data with hire info
  */
 export function getRecentHires(data, courseGroups, daysBack) {
-  const staffMap = new Map();
+  const baseName = (record) => courseGroups[record.course]?.baseName || record.course;
 
-  data.forEach(record => {
-    if (!record.lastHireDate) return;
+  const staffMap = aggregateByEmail(data, {
+    keyOf: (record) => record.email,
+    skip: (record) => {
+      if (!record.lastHireDate) return true;
+      const days = calculateDaysSinceHire(record.lastHireDate);
+      return days === null || days > daysBack;
+    },
+    identity: (record) => ({
+      email: record.email,
+      displayName: buildDisplayName(record),
+      lastHireDate: record.lastHireDate,
+      daysSinceHire: calculateDaysSinceHire(record.lastHireDate),
+      requiredCourses: [],
+      completedRequired: 0,
+      totalRequired: ONBOARDING_REQUIRED_COURSES.length,
+      totalEnrollments: 0,
+      totalCompletions: 0
+    }),
+    onRecord: (staff, record) => {
+      const courseName = baseName(record);
+      const isCompleted = isCourseComplete(record);
+      const isRequired = isOnboardingRequiredCourse(courseName);
 
-    const daysSinceHire = calculateDaysSinceHire(record.lastHireDate);
-    if (daysSinceHire === null || daysSinceHire > daysBack) return;
-
-    const staffKey = record.email;
-    const courseName = courseGroups[record.course]?.baseName || record.course;
-
-    if (!staffMap.has(staffKey)) {
-      staffMap.set(staffKey, {
-        email: record.email,
-        displayName: `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`,
-        lastHireDate: record.lastHireDate,
-        daysSinceHire,
-        courses: [],
-        requiredCourses: [],
-        completedRequired: 0,
-        totalRequired: REQUIRED_COURSES.length,
-        totalEnrollments: 0,
-        totalCompletions: 0
-      });
-    }
-
-    const staff = staffMap.get(staffKey);
-    const isCompleted = record.percentCompleted === 100 || record.dateCompleted !== null;
-    const isRequired = isRequiredCourse(courseName);
-
-    staff.courses.push({
-      course: courseName,
-      percentCompleted: record.percentCompleted,
-      isCompleted,
-      isRequired,
-      enrolledAt: record.enrolledAt,
-      dateCompleted: record.dateCompleted
-    });
-
-    staff.totalEnrollments++;
-    if (isCompleted) {
-      staff.totalCompletions++;
-      if (isRequired) {
-        staff.completedRequired++;
-      }
-    }
-
-    if (isRequired) {
-      staff.requiredCourses.push({
+      staff.courses.push({
         course: courseName,
-        isCompleted,
         percentCompleted: record.percentCompleted,
+        isCompleted,
+        isRequired,
         enrolledAt: record.enrolledAt,
         dateCompleted: record.dateCompleted
       });
+
+      staff.totalEnrollments++;
+      if (isCompleted) {
+        staff.totalCompletions++;
+        if (isRequired) staff.completedRequired++;
+      }
+
+      if (isRequired) {
+        staff.requiredCourses.push({
+          course: courseName,
+          isCompleted,
+          percentCompleted: record.percentCompleted,
+          enrolledAt: record.enrolledAt,
+          dateCompleted: record.dateCompleted
+        });
+      }
     }
   });
 
@@ -95,13 +91,13 @@ export function calculateOnboardingCompliance(data, courseGroups) {
 
     const staffKey = record.email;
     const courseName = courseGroups[record.course]?.baseName || record.course;
-    const isRequired = isRequiredCourse(courseName);
-    const isCompleted = record.percentCompleted === 100 || record.dateCompleted !== null;
+    const isRequired = isOnboardingRequiredCourse(courseName);
+    const isCompleted = isCourseComplete(record);
 
     if (!staffMap.has(staffKey)) {
       staffMap.set(staffKey, {
         email: record.email,
-        displayName: `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`,
+        displayName: buildDisplayName(record),
         lastHireDate: record.lastHireDate,
         daysSinceHire: calculateDaysSinceHire(record.lastHireDate),
         requiredCoursesCompleted: new Set(),
@@ -125,15 +121,15 @@ export function calculateOnboardingCompliance(data, courseGroups) {
 
   // Calculate compliance stats
   const compliant = staffList.filter(s =>
-    s.requiredCoursesCompleted.size === REQUIRED_COURSES.length
+    s.requiredCoursesCompleted.size === ONBOARDING_REQUIRED_COURSES.length
   );
 
   const nonCompliantWithinWindow = staffList.filter(s =>
-    s.isWithinOnboarding && s.requiredCoursesCompleted.size < REQUIRED_COURSES.length
+    s.isWithinOnboarding && s.requiredCoursesCompleted.size < ONBOARDING_REQUIRED_COURSES.length
   );
 
   const nonCompliantPastWindow = staffList.filter(s =>
-    s.isPastOnboarding && s.requiredCoursesCompleted.size < REQUIRED_COURSES.length
+    s.isPastOnboarding && s.requiredCoursesCompleted.size < ONBOARDING_REQUIRED_COURSES.length
   );
 
   return {
@@ -141,12 +137,10 @@ export function calculateOnboardingCompliance(data, courseGroups) {
     compliant: compliant.length,
     nonCompliantWithinWindow: nonCompliantWithinWindow.length,
     nonCompliantPastWindow: nonCompliantPastWindow.length,
-    complianceRate: staffList.length > 0
-      ? Math.round((compliant.length / staffList.length) * 100)
-      : 0,
+    complianceRate: completionRate(compliant.length, staffList.length, { mode: 'int' }),
     nonCompliantPastWindowList: nonCompliantPastWindow.map(s => ({
       ...s,
-      missingCourses: REQUIRED_COURSES.filter(
+      missingCourses: ONBOARDING_REQUIRED_COURSES.filter(
         req => !Array.from(s.requiredCoursesCompleted).some(completed =>
           completed.toLowerCase().includes(req.toLowerCase())
         )
@@ -170,9 +164,8 @@ export function calculateCohortAnalysis(data, courseGroups) {
     const hireYear = getHireYear(record.lastHireDate);
     if (!hireYear || hireYear < 2020) return; // Only show recent hires
 
-    const staffKey = `${record.email}-${hireYear}`;
     const courseName = courseGroups[record.course]?.baseName || record.course;
-    const isCompleted = record.percentCompleted === 100 || record.dateCompleted !== null;
+    const isCompleted = isCourseComplete(record);
 
     if (!cohorts[hireYear]) {
       cohorts[hireYear] = {
@@ -194,9 +187,7 @@ export function calculateCohortAnalysis(data, courseGroups) {
   // Calculate completion rates
   Object.values(cohorts).forEach(cohort => {
     cohort.staffCount = cohort.staff.size;
-    cohort.completionRate = cohort.enrollments > 0
-      ? Math.round((cohort.completions / cohort.enrollments) * 100)
-      : 0;
+    cohort.completionRate = completionRate(cohort.completions, cohort.enrollments, { mode: 'int' });
     delete cohort.staff; // Remove Set for cleaner output
   });
 

@@ -11,8 +11,8 @@ import CostCenterReports from './components/CostCenterReports';
 import IndividualReport from './components/IndividualReport';
 import VPReport from './components/VPReport';
 import DataDisclaimer from './components/DataDisclaimer';
-import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './utils/courseGrouping';
-import { calculateSummaryStats, filterByDateRange } from './utils/analytics';
+import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './data/courseGrouping';
+import { calculateSummaryStats, filterByDateRange } from './reports/analytics';
 import './styles/App.css';
 
 function App() {

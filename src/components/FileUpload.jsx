@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { parseCSV } from '../utils/csvParser';
+import { parseCSV } from '../data/parseCsv';
 import '../styles/FileUpload.css';
 
 export default function FileUpload({ onDataLoaded }) {

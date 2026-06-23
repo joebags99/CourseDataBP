@@ -11,8 +11,8 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { calculateYearOverYear } from '../utils/analytics';
-import { exportToCSV } from '../utils/csvParser';
+import { calculateYearOverYear } from '../reports/analytics';
+import { exportToCSV } from '../export/csv';
 import '../styles/YearOverYear.css';
 
 export default function YearOverYear({ data, courseGroups, groupVersions, showRawNumbers }) {

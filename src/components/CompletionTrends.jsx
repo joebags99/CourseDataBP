@@ -12,7 +12,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { format } from 'date-fns';
-import { calculateMonthlyTrends, identifyLowCompletionCourses } from '../utils/analytics';
+import { calculateMonthlyTrends, identifyLowCompletionCourses } from '../reports/analytics';
 import '../styles/CompletionTrends.css';
 
 export default function CompletionTrends({ data, courseGroups, groupVersions, showRawNumbers }) {

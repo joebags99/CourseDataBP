@@ -1,18 +1,8 @@
 import * as XLSX from 'xlsx';
-import { formatCourseName, sortCoursesByPriority } from './courseConfig';
+import { formatCourseName, sortCoursesByPriority } from '../config/courses';
+import { getDateString, completionStatusLabel } from '../data/dataModel';
 
 const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
-
-/**
- * Get current date formatted as MMDDYYYY
- */
-function getDateString() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const year = now.getFullYear();
-  return `${month}${day}${year}`;
-}
 
 /**
  * Sanitize a name for use in filename (remove spaces and special chars)
@@ -147,7 +137,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
         course.percentCompleted + '%',
         course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
         course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-        course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+        completionStatusLabel(course)
       ]);
     });
   } else {
@@ -218,7 +208,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
           course.percentCompleted + '%',
           course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+          completionStatusLabel(course)
         ]);
       });
     } else {
@@ -287,7 +277,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
           member.isPlaceholder ? 'N/A' : member.email,
           formatCourseName(course.course), // Add asterisk for required courses
           course.percentCompleted + '%',
-          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+          completionStatusLabel(course),
           course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
         ]);
@@ -392,7 +382,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
             course.percentCompleted + '%',
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
             course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-            course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+            completionStatusLabel(course)
           ]);
         });
       } else {
@@ -481,7 +471,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
             member.displayName === supervisorName ? 'Supervisor' : 'Direct Report',
             formatCourseName(course.course), // Add asterisk for required courses
             course.percentCompleted + '%',
-            course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+            completionStatusLabel(course),
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
             course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
           ]);
@@ -627,7 +617,7 @@ export function exportIndividualReportToExcel(reportData) {
         course.percentCompleted + '%',
         course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
         course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-        course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+        completionStatusLabel(course)
       ]);
     });
   } else {
@@ -760,7 +750,7 @@ export function exportCostCenterReportToExcel(reportData) {
           course.percentCompleted + '%',
           course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-          course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+          completionStatusLabel(course)
         ]);
       });
     } else {
@@ -795,7 +785,7 @@ export function exportCostCenterReportToExcel(reportData) {
           member.email,
           formatCourseName(course.course),
           course.percentCompleted + '%',
-          course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+          completionStatusLabel(course),
           course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
           course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
         ]);
@@ -855,7 +845,7 @@ export function exportAllCostCentersToExcel(allReports) {
             course.percentCompleted + '%',
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
             course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : '',
-            course.percentCompleted === 100 ? 'Completed' : 'In Progress'
+            completionStatusLabel(course)
           ]);
         });
       } else {
@@ -899,7 +889,7 @@ export function exportAllCostCentersToExcel(allReports) {
             member.email,
             formatCourseName(course.course),
             course.percentCompleted + '%',
-            course.percentCompleted === 100 ? 'Completed' : 'In Progress',
+            completionStatusLabel(course),
             course.lastHireDate ? new Date(course.lastHireDate).toLocaleDateString() : '',
             course.dateCompleted ? new Date(course.dateCompleted).toLocaleDateString() : ''
           ]);

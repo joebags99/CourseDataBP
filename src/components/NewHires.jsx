@@ -15,9 +15,9 @@ import {
   calculateOnboardingCompliance,
   calculateCohortAnalysis,
   getNonCompliantStaff
-} from '../utils/hireDateAnalytics';
-import { REQUIRED_COURSES, ONBOARDING_WINDOW_DAYS } from '../utils/hireDate';
-import { exportToCSV } from '../utils/csvParser';
+} from '../reports/newHireAnalytics';
+import { ONBOARDING_REQUIRED_COURSES as REQUIRED_COURSES, ONBOARDING_WINDOW_DAYS } from '../config/onboarding';
+import { exportToCSV } from '../export/csv';
 import '../styles/NewHires.css';
 
 export default function NewHires({ data, courseGroups, groupVersions, showRawNumbers }) {

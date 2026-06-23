@@ -1,4 +1,6 @@
-import { sortCoursesByPriority } from './courseConfig';
+import { sortCoursesByPriority } from '../config/courses';
+import { aggregateByEmail } from './aggregate';
+import { buildDisplayName, mapCourseRecord, isCourseComplete, completionRate } from './dataModel';
 
 /**
  * Build a map of all unique employees from raw CSV data.
@@ -7,45 +9,25 @@ import { sortCoursesByPriority } from './courseConfig';
  * @returns {Map<string, Object>} email -> employee object
  */
 export function buildEmployeeMap(rawData) {
-  const map = new Map();
-
-  rawData.forEach(record => {
-    const email = record.email.toLowerCase();
-    const displayName =
-      `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`.trim();
-
-    if (!map.has(email)) {
-      map.set(email, {
-        email,
-        displayName,
-        legalFirstname: record.legalFirstname,
-        preferredFirstname: record.preferredFirstname,
-        lastname: record.lastname,
-        lastHireDate: record.lastHireDate || null,
-        supervisor: record.supervisor || '',
-        program: record.program || '',
-        courses: []
-      });
+  return aggregateByEmail(rawData, {
+    identity: (record) => ({
+      email: record.email.toLowerCase(),
+      displayName: buildDisplayName(record, { trim: true }),
+      legalFirstname: record.legalFirstname,
+      preferredFirstname: record.preferredFirstname,
+      lastname: record.lastname,
+      lastHireDate: record.lastHireDate || null,
+      supervisor: record.supervisor || '',
+      program: record.program || ''
+    }),
+    mapCourse: mapCourseRecord,
+    onRecord: (emp, record) => {
+      // Keep the first (non-null) hire date encountered
+      if (!emp.lastHireDate && record.lastHireDate) {
+        emp.lastHireDate = record.lastHireDate;
+      }
     }
-
-    const emp = map.get(email);
-
-    // Keep the most recent (non-null) hire date
-    if (!emp.lastHireDate && record.lastHireDate) {
-      emp.lastHireDate = record.lastHireDate;
-    }
-
-    emp.courses.push({
-      course: record.course,
-      percentCompleted: record.percentCompleted,
-      enrolledAt: record.enrolledAt,
-      dateCompleted: record.dateCompleted,
-      lastHireDate: record.lastHireDate,
-      daysToComplete: record.daysToComplete
-    });
   });
-
-  return map;
 }
 
 /**
@@ -72,10 +54,7 @@ export function getEmployeeReport(email, employeeMap) {
 
   const sortedCourses = sortCoursesByPriority(emp.courses);
   const totalCourses = sortedCourses.length;
-  const completedCourses = sortedCourses.filter(c => c.percentCompleted === 100).length;
-  const completionRate = totalCourses > 0
-    ? (completedCourses / totalCourses * 100).toFixed(1)
-    : 0;
+  const completedCourses = sortedCourses.filter(c => isCourseComplete(c, { strict: true })).length;
 
   return {
     email: emp.email,
@@ -88,6 +67,6 @@ export function getEmployeeReport(email, employeeMap) {
     courses: sortedCourses,
     totalCourses,
     completedCourses,
-    completionRate
+    completionRate: completionRate(completedCourses, totalCourses, { mode: 'fixed1' })
   };
 }

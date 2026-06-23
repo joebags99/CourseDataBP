@@ -1,22 +1,9 @@
-// Required compliance courses
-export const REQUIRED_COURSES = [
-  'Trauma 101',
-  'Workplace Safety'
-];
-
-// Number of days for onboarding compliance window
-export const ONBOARDING_WINDOW_DAYS = 90;
+import { ONBOARDING_WINDOW_DAYS } from '../config/onboarding';
 
 /**
- * Check if a course is required for compliance
- * @param {string} courseName - Course name (base name after grouping)
- * @returns {boolean}
+ * Hire-date / tenure helpers.
+ * (Required-course config now lives in ../config/onboarding.js.)
  */
-export function isRequiredCourse(courseName) {
-  return REQUIRED_COURSES.some(required =>
-    courseName.toLowerCase().includes(required.toLowerCase())
-  );
-}
 
 /**
  * Calculate days since hire date

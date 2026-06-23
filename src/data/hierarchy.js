@@ -1,3 +1,12 @@
+import {
+  buildDisplayName,
+  mapCourseRecord,
+  isCourseComplete,
+  completionRate,
+  normalizeName,
+  namesMatch
+} from './dataModel';
+
 /**
  * Parse supervisor string from UKG data
  * Format: "Supervisor Name - ID" or "Supervisor1 - ID1, Supervisor2 - ID2"
@@ -29,52 +38,6 @@ export function parseSupervisors(supervisorStr) {
 }
 
 /**
- * Normalize a name for matching (lowercase, remove extra spaces)
- */
-function normalizeName(name) {
-  return name.toLowerCase().trim().replace(/\s+/g, ' ');
-}
-
-/**
- * Remove middle initials/names from a name for flexible matching
- * "Kari N Daniel" -> "Kari Daniel"
- * "John Q. Public" -> "John Public"
- */
-function removeMiddleName(name) {
-  const normalized = normalizeName(name);
-  const parts = normalized.split(' ');
-
-  // If only 2 parts (first + last), return as-is
-  if (parts.length <= 2) {
-    return normalized;
-  }
-
-  // If 3+ parts, try removing middle parts (assume first and last are most important)
-  // Return first + last name
-  return `${parts[0]} ${parts[parts.length - 1]}`;
-}
-
-/**
- * Check if an employee's name matches a supervisor name
- * Handles middle initials/names by comparing with and without them
- */
-function namesMatch(employeeName, supervisorName) {
-  const empNorm = normalizeName(employeeName);
-  const supNorm = normalizeName(supervisorName);
-
-  // Direct match
-  if (empNorm === supNorm) {
-    return true;
-  }
-
-  // Try matching without middle names/initials
-  const empNoMiddle = removeMiddleName(employeeName);
-  const supNoMiddle = removeMiddleName(supervisorName);
-
-  return empNoMiddle === supNoMiddle;
-}
-
-/**
  * Build organizational hierarchy from raw data
  * Handles the UKG pattern where managers list themselves as their own supervisor
  * @param {Array} rawData - Parsed CSV data with supervisor information
@@ -90,7 +53,7 @@ export function buildHierarchy(rawData) {
   // First pass: collect all unique employees with course data
   rawData.forEach(record => {
     const email = record.email.toLowerCase();
-    const displayName = `${record.preferredFirstname || record.legalFirstname} ${record.lastname}`;
+    const displayName = buildDisplayName(record);
     const supervisors = parseSupervisors(record.supervisor);
 
     // Filter out self-supervisor references
@@ -130,14 +93,7 @@ export function buildHierarchy(rawData) {
 
     // Add course data to employee
     const employee = employeeMap.get(email);
-    employee.courses.push({
-      course: record.course,
-      percentCompleted: record.percentCompleted,
-      enrolledAt: record.enrolledAt,
-      dateCompleted: record.dateCompleted,
-      lastHireDate: record.lastHireDate,
-      daysToComplete: record.daysToComplete
-    });
+    employee.courses.push(mapCourseRecord(record));
   });
 
   // Second pass: Create placeholder entries for supervisors mentioned but not in the data
@@ -152,7 +108,7 @@ export function buildHierarchy(rawData) {
 
       // Try flexible matching if not found
       if (!existingBySupervisorName && !existingByNameId) {
-        for (const [email, emp] of employeeMap) {
+        for (const [, emp] of employeeMap) {
           if (namesMatch(emp.displayName, sup.name)) {
             existingBySupervisorName = emp;
             // Cache this match
@@ -210,10 +166,8 @@ export function buildHierarchy(rawData) {
 
       // If still not found, try flexible matching (without middle names)
       if (!supervisor) {
-        const supNoMiddle = removeMiddleName(sup.name);
-
         // Search through all employees for a name match
-        for (const [email, emp] of employeeMap) {
+        for (const [, emp] of employeeMap) {
           if (namesMatch(emp.displayName, sup.name)) {
             supervisor = emp;
             // Cache this match for future lookups
@@ -418,8 +372,7 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
   // Calculate statistics
   const teamData = teamMembers.map(member => {
     const totalCourses = member.courses.length;
-    const completedCourses = member.courses.filter(c => c.percentCompleted === 100).length;
-    const completionRate = totalCourses > 0 ? (completedCourses / totalCourses * 100).toFixed(1) : 0;
+    const completedCourses = member.courses.filter(c => isCourseComplete(c, { strict: true })).length;
 
     return {
       email: member.email,
@@ -428,7 +381,7 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
       lastname: member.lastname,
       totalCourses,
       completedCourses,
-      completionRate,
+      completionRate: completionRate(completedCourses, totalCourses, { mode: 'fixed1' }),
       courses: member.courses,
       supervisors: member.supervisors,
       hasDirectReports: member.directReports && member.directReports.size > 0,
@@ -445,9 +398,6 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
   const totalTeamMembers = teamData.length;
   const totalEnrollments = membersWithData.reduce((sum, member) => sum + member.totalCourses, 0);
   const totalCompletions = membersWithData.reduce((sum, member) => sum + member.completedCourses, 0);
-  const overallCompletionRate = totalEnrollments > 0
-    ? (totalCompletions / totalEnrollments * 100).toFixed(1)
-    : 0;
 
   return {
     supervisor: {
@@ -463,7 +413,7 @@ export function getSupervisorReport(supervisorEmail, hierarchy, cascading = true
       totalTeamMembers,
       totalEnrollments,
       totalCompletions,
-      overallCompletionRate,
+      overallCompletionRate: completionRate(totalCompletions, totalEnrollments, { mode: 'fixed1' }),
       directReportCount: supervisor.directReports.size,
       totalReportCount: supervisor.allReports.size
     }

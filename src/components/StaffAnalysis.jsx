@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { getStaffCompletionData } from '../utils/analytics';
-import { exportToCSV } from '../utils/csvParser';
+import { getStaffCompletionData } from '../reports/analytics';
+import { exportToCSV } from '../export/csv';
 import '../styles/StaffAnalysis.css';
 
 export default function StaffAnalysis({ data, courseGroups, groupVersions, showRawNumbers }) {

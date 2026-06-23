@@ -5,13 +5,14 @@
  * the list of leaders (anyone with direct reports), each leader's status on the
  * tracked leadership/compliance courses, and cascade-based filtering/roll-up.
  */
-import { getCascadingReports } from './supervisorHierarchy';
+import { getCascadingReports } from '../data/hierarchy';
+import { isCourseComplete } from '../data/dataModel';
 import {
   TRACKED_COURSES,
   INTRO_OMIT_CUTOFF,
   matchesTrackedCourse,
   isIntroToLeadership
-} from './leadershipConfig';
+} from '../config/leadershipCourses';
 
 /**
  * Course status values used throughout the report.
@@ -78,9 +79,7 @@ function getCourseStatus(courses, trackedCourse, hireDate) {
     return { status: 'missing', enrollment: null };
   }
 
-  const completed = matches.find(
-    c => c.percentCompleted === 100 || c.dateCompleted
-  );
+  const completed = matches.find(c => isCourseComplete(c));
   if (completed) {
     return { status: 'complete', enrollment: completed };
   }

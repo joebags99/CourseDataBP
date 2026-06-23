@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
-import { buildHierarchy, getAllSupervisors, getSupervisorReport } from '../utils/supervisorHierarchy';
-import { exportSupervisorReportToExcel, exportDirectReportsBySupervisor } from '../utils/excelExporter';
+import { buildHierarchy, getAllSupervisors, getSupervisorReport } from '../data/hierarchy';
+import { exportSupervisorReportToExcel, exportDirectReportsBySupervisor } from '../export/excel';
 import '../styles/SupervisorReports.css';
 
 export default function SupervisorReports({ data, courseGroups, groupVersions }) {

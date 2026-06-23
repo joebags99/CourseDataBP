@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
-import { buildHierarchy } from '../utils/supervisorHierarchy';
+import { buildHierarchy } from '../data/hierarchy';
 import {
   buildLeadershipReport,
   getLeadersUnder,
   buildCascadeRollup
-} from '../utils/leadershipReport';
-import { exportLeadershipReportToExcel } from '../utils/excelExporter';
+} from '../reports/leadership';
+import { exportLeadershipReportToExcel } from '../export/excel';
 import '../styles/LeadershipReport.css';
 
 const STATUS_META = {

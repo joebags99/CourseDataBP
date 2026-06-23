@@ -5,7 +5,7 @@
  * combined with the org-wide Required/compliance courses. Edit LEADERSHIP_COURSES
  * each reporting cycle as the curriculum changes.
  */
-import { REQUIRED_COURSES } from './courseConfig';
+import { REQUIRED_COURSES } from './courses';
 
 /**
  * Leadership-specific courses (in addition to the org-wide Required Courses).

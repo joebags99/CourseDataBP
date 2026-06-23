@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { buildHierarchy, getVPsAndMapping } from '../utils/supervisorHierarchy';
-import { exportToCSV } from '../utils/csvParser';
+import { buildHierarchy, getVPsAndMapping } from '../data/hierarchy';
+import { exportToCSV } from '../export/csv';
 import '../styles/VPReport.css';
 
 // These three VPs get their own category; everyone else rolls into "Admin"

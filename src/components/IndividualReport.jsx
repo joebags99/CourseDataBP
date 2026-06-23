@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { buildEmployeeMap, getAllEmployees, getEmployeeReport } from '../utils/individualReportUtils';
-import { isRequiredCourse } from '../utils/courseConfig';
-import { exportIndividualReportToExcel } from '../utils/excelExporter';
+import { buildEmployeeMap, getAllEmployees, getEmployeeReport } from '../data/employees';
+import { isRequiredCourse } from '../config/courses';
+import { exportIndividualReportToExcel } from '../export/excel';
 import '../styles/IndividualReport.css';
 
 const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';

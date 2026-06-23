@@ -6,11 +6,11 @@ import {
   getAllRegions,
   getCostCenterReport,
   getMultiCostCenterReport
-} from '../utils/costCenterUtils';
+} from '../data/costCenters';
 import {
   exportCostCenterReportToExcel,
   exportAllCostCentersToExcel
-} from '../utils/excelExporter';
+} from '../export/excel';
 import '../styles/CostCenterReports.css';
 
 export default function CostCenterReports({ data, courseGroups, groupVersions }) {
