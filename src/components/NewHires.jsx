@@ -18,15 +18,25 @@ import {
 } from '../reports/newHireAnalytics';
 import { ONBOARDING_REQUIRED_COURSES as REQUIRED_COURSES, ONBOARDING_WINDOW_DAYS } from '../config/onboarding';
 import { exportToCSV } from '../export/csv';
+import { useToggleSet } from '../hooks/useToggleSet';
+import { useSortComparator } from '../hooks/useSortComparator';
 import '../styles/NewHires.css';
 
 export default function NewHires({ data, courseGroups, groupVersions, showRawNumbers }) {
   const [daysFilter, setDaysFilter] = useState(90);
-  const [expandedStaff, setExpandedStaff] = useState(new Set());
   const [nonCompliantSearch, setNonCompliantSearch] = useState('');
   const [missingCourseFilter, setMissingCourseFilter] = useState('all');
-  const [nonCompliantSort, setNonCompliantSort] = useState('days');
   const [hireYearCutoff, setHireYearCutoff] = useState(null); // null = no filter
+  const { set: expandedStaff, toggle: toggleExpanded } = useToggleSet();
+  const {
+    sortBy: nonCompliantSort,
+    setSortBy: setNonCompliantSort,
+    comparator: nonCompliantComparator,
+  } = useSortComparator('days', {
+    name: (a, b) => a.displayName.localeCompare(b.displayName),
+    days: (a, b) => b.daysSinceHire - a.daysSinceHire,
+    courses: (a, b) => b.missingCourses.length - a.missingCourses.length,
+  });
 
   // Debug: Check how many records have hire dates
   console.log('NewHires - Total records:', data.length);
@@ -115,31 +125,10 @@ export default function NewHires({ data, courseGroups, groupVersions, showRawNum
     }
 
     // Apply sorting
-    filtered.sort((a, b) => {
-      switch (nonCompliantSort) {
-        case 'name':
-          return a.displayName.localeCompare(b.displayName);
-        case 'days':
-          return b.daysSinceHire - a.daysSinceHire; // Most days first
-        case 'courses':
-          return b.missingCourses.length - a.missingCourses.length; // Most missing first
-        default:
-          return 0;
-      }
-    });
+    filtered.sort(nonCompliantComparator);
 
     return filtered;
-  }, [nonCompliantStaff, nonCompliantSearch, missingCourseFilter, nonCompliantSort]);
-
-  const toggleExpanded = (email) => {
-    const newExpanded = new Set(expandedStaff);
-    if (newExpanded.has(email)) {
-      newExpanded.delete(email);
-    } else {
-      newExpanded.add(email);
-    }
-    setExpandedStaff(newExpanded);
-  };
+  }, [nonCompliantStaff, nonCompliantSearch, missingCourseFilter, nonCompliantComparator]);
 
   const exportRecentHires = () => {
     const exportData = recentHires.map(staff => ({

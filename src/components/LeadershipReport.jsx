@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { buildHierarchy } from '../data/hierarchy';
 import {
   buildLeadershipReport,
@@ -6,6 +6,9 @@ import {
   buildCascadeRollup
 } from '../reports/leadership';
 import { exportLeadershipReportToExcel } from '../export/excel';
+import { useToggleSet } from '../hooks/useToggleSet';
+import { useCourseFilter } from '../hooks/useCourseFilter';
+import { useSortComparator } from '../hooks/useSortComparator';
 import '../styles/LeadershipReport.css';
 
 const STATUS_META = {
@@ -45,10 +48,13 @@ function complianceLevel(rate) {
 
 export default function LeadershipReport({ data }) {
   const [topNode, setTopNode] = useState(''); // '' = All Leaders
-  const [sortBy, setSortBy] = useState('name'); // 'name' | 'compliance' | 'missing'
-  const [selectedCourses, setSelectedCourses] = useState([]);
   const [showCourseFilter, setShowCourseFilter] = useState(false);
-  const [selectedEmails, setSelectedEmails] = useState(new Set());
+  const { set: selectedEmails, toggle: toggleEmail } = useToggleSet();
+  const { sortBy, setSortBy, comparator: leaderComparator } = useSortComparator('name', {
+    name: (a, b) => a.displayName.localeCompare(b.displayName),
+    compliance: (a, b) => b.complianceRate - a.complianceRate,
+    missing: (a, b) => b.missingCount - a.missingCount,
+  });
 
   // Build hierarchy + base report.
   const hierarchy = useMemo(() => {
@@ -61,12 +67,13 @@ export default function LeadershipReport({ data }) {
     return buildLeadershipReport(hierarchy);
   }, [hierarchy]);
 
-  // Default the in-scope course filter to all tracked courses once available.
-  useEffect(() => {
-    if (report.trackedCourses.length > 0) {
-      setSelectedCourses(report.trackedCourses);
-    }
-  }, [report.trackedCourses]);
+  // In-scope course filter (defaults to all tracked courses).
+  const {
+    selected: selectedCourses,
+    toggle: toggleCourse,
+    selectAll: selectAllCourses,
+    deselectAll: deselectAllCourses,
+  } = useCourseFilter(report.trackedCourses);
 
   // All leaders recomputed for the in-scope courses (used for rollup lookups too).
   const allViewLeaders = useMemo(
@@ -84,14 +91,8 @@ export default function LeadershipReport({ data }) {
   const sortedLeaders = useMemo(() => {
     if (!hierarchy) return [];
     const filtered = getLeadersUnder(topNode, hierarchy, allViewLeaders);
-    const sorted = [...filtered];
-    sorted.sort((a, b) => {
-      if (sortBy === 'compliance') return b.complianceRate - a.complianceRate;
-      if (sortBy === 'missing') return b.missingCount - a.missingCount;
-      return a.displayName.localeCompare(b.displayName);
-    });
-    return sorted;
-  }, [hierarchy, topNode, allViewLeaders, sortBy]);
+    return [...filtered].sort(leaderComparator);
+  }, [hierarchy, topNode, allViewLeaders, leaderComparator]);
 
   // Page 2 drill-down: checked leaders, or the current view if none checked.
   const detailLeaders = useMemo(() => {
@@ -115,21 +116,6 @@ export default function LeadershipReport({ data }) {
       : 0;
     return { totalLeaders, fullyCompliant, overall };
   }, [sortedLeaders]);
-
-  const toggleEmail = (email) => {
-    setSelectedEmails(prev => {
-      const next = new Set(prev);
-      if (next.has(email)) next.delete(email);
-      else next.add(email);
-      return next;
-    });
-  };
-
-  const toggleCourse = (course) => {
-    setSelectedCourses(prev =>
-      prev.includes(course) ? prev.filter(c => c !== course) : [...prev, course]
-    );
-  };
 
   const handleExport = () => {
     exportLeadershipReportToExcel(
@@ -201,10 +187,10 @@ export default function LeadershipReport({ data }) {
           {showCourseFilter && (
             <div className="course-filter-panel">
               <div className="course-filter-actions">
-                <button className="filter-action-button" onClick={() => setSelectedCourses(report.trackedCourses)}>
+                <button className="filter-action-button" onClick={selectAllCourses}>
                   Select All
                 </button>
-                <button className="filter-action-button" onClick={() => setSelectedCourses([])}>
+                <button className="filter-action-button" onClick={deselectAllCourses}>
                   Deselect All
                 </button>
               </div>

@@ -2,13 +2,19 @@ import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { getStaffCompletionData } from '../reports/analytics';
 import { exportToCSV } from '../export/csv';
+import { useToggleSet } from '../hooks/useToggleSet';
+import { useSortComparator } from '../hooks/useSortComparator';
 import '../styles/StaffAnalysis.css';
 
 export default function StaffAnalysis({ data, courseGroups, groupVersions, showRawNumbers }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [completionFilter, setCompletionFilter] = useState('all'); // 'all', 'completed', 'partial', 'notStarted'
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'completionRate', 'courses'
-  const [expandedStaff, setExpandedStaff] = useState(new Set());
+  const { set: expandedStaff, toggle: toggleStaffExpansion } = useToggleSet();
+  const { sortBy, setSortBy, comparator: sortComparator } = useSortComparator('name', {
+    name: (a, b) => a.displayName.localeCompare(b.displayName),
+    completionRate: (a, b) => b.completionRate - a.completionRate,
+    courses: (a, b) => b.totalEnrollments - a.totalEnrollments,
+  });
 
   const staffData = useMemo(
     () => getStaffCompletionData(data, courseGroups, groupVersions),
@@ -43,29 +49,10 @@ export default function StaffAnalysis({ data, courseGroups, groupVersions, showR
     }
 
     // Apply sorting
-    filtered.sort((a, b) => {
-      if (sortBy === 'name') {
-        return a.displayName.localeCompare(b.displayName);
-      } else if (sortBy === 'completionRate') {
-        return b.completionRate - a.completionRate;
-      } else if (sortBy === 'courses') {
-        return b.totalEnrollments - a.totalEnrollments;
-      }
-      return 0;
-    });
+    filtered.sort(sortComparator);
 
     return filtered;
-  }, [staffData, searchTerm, completionFilter, sortBy]);
-
-  const toggleStaffExpansion = (email) => {
-    const newExpanded = new Set(expandedStaff);
-    if (newExpanded.has(email)) {
-      newExpanded.delete(email);
-    } else {
-      newExpanded.add(email);
-    }
-    setExpandedStaff(newExpanded);
-  };
+  }, [staffData, searchTerm, completionFilter, sortComparator]);
 
   const exportStaffData = () => {
     const exportRows = filteredStaff.flatMap(staff =>

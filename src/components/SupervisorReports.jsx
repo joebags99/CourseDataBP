@@ -1,16 +1,22 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { buildHierarchy, getAllSupervisors, getSupervisorReport } from '../data/hierarchy';
 import { exportSupervisorReportToExcel, exportDirectReportsBySupervisor } from '../export/excel';
+import { useToggleSet } from '../hooks/useToggleSet';
+import { useCourseFilter } from '../hooks/useCourseFilter';
+import { useSortComparator } from '../hooks/useSortComparator';
 import '../styles/SupervisorReports.css';
 
 export default function SupervisorReports({ data, courseGroups, groupVersions }) {
   const [selectedSupervisor, setSelectedSupervisor] = useState('');
   const [cascading, setCascading] = useState(true);
-  const [expandedMembers, setExpandedMembers] = useState(new Set());
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'completionRate', 'courses'
-  const [selectedCourses, setSelectedCourses] = useState([]); // Array of selected course names
   const [showCourseFilter, setShowCourseFilter] = useState(false);
+  const { set: expandedMembers, toggle: toggleMemberExpansion } = useToggleSet();
+  const { sortBy, setSortBy, comparator: sortComparator } = useSortComparator('name', {
+    name: (a, b) => a.displayName.localeCompare(b.displayName),
+    completionRate: (a, b) => parseFloat(b.completionRate) - parseFloat(a.completionRate),
+    courses: (a, b) => b.totalCourses - a.totalCourses,
+  });
 
   // Build organizational hierarchy
   const hierarchy = useMemo(() => {
@@ -36,12 +42,13 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
     return Array.from(coursesSet).sort();
   }, [hierarchy]);
 
-  // Initialize selectedCourses when allCourses first becomes available
-  useEffect(() => {
-    if (allCourses.length > 0) {
-      setSelectedCourses(allCourses);
-    }
-  }, [allCourses]);
+  // Course multi-select filter (defaults to all courses)
+  const {
+    selected: selectedCourses,
+    toggle: toggleCourseSelection,
+    selectAll: selectAllCourses,
+    deselectAll: deselectAllCourses,
+  } = useCourseFilter(allCourses);
 
   // Get selected supervisor's report with course filter applied
   const supervisorReport = useMemo(() => {
@@ -85,49 +92,8 @@ export default function SupervisorReports({ data, courseGroups, groupVersions })
   const sortedTeamMembers = useMemo(() => {
     if (!supervisorReport) return [];
 
-    const sorted = [...supervisorReport.teamMembers];
-
-    sorted.sort((a, b) => {
-      if (sortBy === 'name') {
-        return a.displayName.localeCompare(b.displayName);
-      } else if (sortBy === 'completionRate') {
-        return parseFloat(b.completionRate) - parseFloat(a.completionRate);
-      } else if (sortBy === 'courses') {
-        return b.totalCourses - a.totalCourses;
-      }
-      return 0;
-    });
-
-    return sorted;
-  }, [supervisorReport, sortBy]);
-
-  const toggleMemberExpansion = (email) => {
-    const newExpanded = new Set(expandedMembers);
-    if (newExpanded.has(email)) {
-      newExpanded.delete(email);
-    } else {
-      newExpanded.add(email);
-    }
-    setExpandedMembers(newExpanded);
-  };
-
-  const toggleCourseSelection = (courseName) => {
-    setSelectedCourses(prev => {
-      if (prev.includes(courseName)) {
-        return prev.filter(c => c !== courseName);
-      } else {
-        return [...prev, courseName];
-      }
-    });
-  };
-
-  const selectAllCourses = () => {
-    setSelectedCourses(allCourses);
-  };
-
-  const deselectAllCourses = () => {
-    setSelectedCourses([]);
-  };
+    return [...supervisorReport.teamMembers].sort(sortComparator);
+  }, [supervisorReport, sortComparator]);
 
   const handleExportReport = () => {
     if (!supervisorReport) return;

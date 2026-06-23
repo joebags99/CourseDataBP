@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { buildHierarchy, getVPsAndMapping } from '../data/hierarchy';
 import { exportToCSV } from '../export/csv';
+import { useToggleSet } from '../hooks/useToggleSet';
 import '../styles/VPReport.css';
 
 // These three VPs get their own category; everyone else rolls into "Admin"
@@ -8,7 +9,7 @@ const FEATURED_VP_NAMES = ['Emily Medere', 'Gabby Hidalgo', 'Melinda Smith'];
 const ADMIN_GROUP_ID = '__admin__';
 
 export default function VPReport({ data }) {
-  const [selectedGroups, setSelectedGroups] = useState(new Set());
+  const { set: selectedGroups, toggle: toggleGroup, setSet: setSelectedGroups } = useToggleSet();
 
   const hierarchy = useMemo(() => {
     if (data.length === 0) return null;
@@ -69,15 +70,6 @@ export default function VPReport({ data }) {
       setSelectedGroups(new Set(displayGroups.map(g => g.id)));
     }
   }, [displayGroups]);
-
-  const toggleGroup = (id) => {
-    setSelectedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const selectAll = () => setSelectedGroups(new Set(displayGroups.map(g => g.id)));
   const deselectAll = () => setSelectedGroups(new Set());

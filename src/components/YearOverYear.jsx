@@ -13,10 +13,11 @@ import {
 } from 'recharts';
 import { calculateYearOverYear } from '../reports/analytics';
 import { exportToCSV } from '../export/csv';
+import { useToggleSet } from '../hooks/useToggleSet';
 import '../styles/YearOverYear.css';
 
 export default function YearOverYear({ data, courseGroups, groupVersions, showRawNumbers }) {
-  const [selectedCourses, setSelectedCourses] = useState(new Set());
+  const { set: selectedCourses, toggle: handleCourseToggle, setSet: setSelectedCourses } = useToggleSet();
   const [chartType, setChartType] = useState('bar'); // 'bar' or 'line'
 
   const yoyStats = useMemo(
@@ -57,16 +58,6 @@ export default function YearOverYear({ data, courseGroups, groupVersions, showRa
       return dataPoint;
     });
   }, [yoyStats, selectedCourses]);
-
-  const handleCourseToggle = (course) => {
-    const newSelected = new Set(selectedCourses);
-    if (newSelected.has(course)) {
-      newSelected.delete(course);
-    } else {
-      newSelected.add(course);
-    }
-    setSelectedCourses(newSelected);
-  };
 
   const handleSelectAll = () => {
     if (selectedCourses.size === courseList.length) {

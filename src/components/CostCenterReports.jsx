@@ -11,16 +11,23 @@ import {
   exportCostCenterReportToExcel,
   exportAllCostCentersToExcel
 } from '../export/excel';
+import { useToggleSet } from '../hooks/useToggleSet';
+import { useCourseFilter } from '../hooks/useCourseFilter';
+import { useSortComparator } from '../hooks/useSortComparator';
 import '../styles/CostCenterReports.css';
 
 export default function CostCenterReports({ data, courseGroups, groupVersions }) {
   const [selectedPrograms, setSelectedPrograms] = useState([]); // array of keys
   const [selectedRegion, setSelectedRegion] = useState('');
   const [showProgramSelector, setShowProgramSelector] = useState(true);
-  const [expandedMembers, setExpandedMembers] = useState(new Set());
-  const [sortBy, setSortBy] = useState('name');
-  const [selectedCourses, setSelectedCourses] = useState([]);
   const [showCourseFilter, setShowCourseFilter] = useState(false);
+  const { set: expandedMembers, toggle: toggleMemberExpansion, clear: clearExpanded } = useToggleSet();
+  const { sortBy, setSortBy, comparator: sortComparator } = useSortComparator('name', {
+    name: (a, b) => a.displayName.localeCompare(b.displayName),
+    completionRate: (a, b) => parseFloat(b.completionRate) - parseFloat(a.completionRate),
+    courses: (a, b) => b.totalCourses - a.totalCourses,
+    program: (a, b) => a.programName.localeCompare(b.programName),
+  });
 
   // Build cost center map from data
   const programMap = useMemo(() => {
@@ -48,12 +55,13 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     return Array.from(coursesSet).sort();
   }, [programMap]);
 
-  // Initialize selectedCourses to all when data loads
-  useMemo(() => {
-    if (allCourses.length > 0 && selectedCourses.length === 0) {
-      setSelectedCourses(allCourses);
-    }
-  }, [allCourses]);
+  // Course multi-select filter (defaults to all courses)
+  const {
+    selected: selectedCourses,
+    toggle: toggleCourseSelection,
+    selectAll: selectAllCourses,
+    deselectAll: deselectAllCourses,
+  } = useCourseFilter(allCourses);
 
   // Combined report for all selected programs
   const costCenterReport = useMemo(() => {
@@ -67,16 +75,8 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
   // Sorted employees
   const sortedEmployees = useMemo(() => {
     if (!costCenterReport) return [];
-    const sorted = [...costCenterReport.employees];
-    sorted.sort((a, b) => {
-      if (sortBy === 'name') return a.displayName.localeCompare(b.displayName);
-      if (sortBy === 'completionRate') return parseFloat(b.completionRate) - parseFloat(a.completionRate);
-      if (sortBy === 'courses') return b.totalCourses - a.totalCourses;
-      if (sortBy === 'program') return a.programName.localeCompare(b.programName);
-      return 0;
-    });
-    return sorted;
-  }, [costCenterReport, sortBy]);
+    return [...costCenterReport.employees].sort(sortComparator);
+  }, [costCenterReport, sortComparator]);
 
   // ── Program selection helpers ──────────────────────────────────────────────
 
@@ -84,19 +84,19 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     setSelectedPrograms(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
-    setExpandedMembers(new Set());
+    clearExpanded();
   };
 
   const selectAllVisible = () => {
     const visibleKeys = visibleCostCenters.map(cc => cc.key);
     setSelectedPrograms(prev => Array.from(new Set([...prev, ...visibleKeys])));
-    setExpandedMembers(new Set());
+    clearExpanded();
   };
 
   const deselectAllVisible = () => {
     const visibleKeys = new Set(visibleCostCenters.map(cc => cc.key));
     setSelectedPrograms(prev => prev.filter(k => !visibleKeys.has(k)));
-    setExpandedMembers(new Set());
+    clearExpanded();
   };
 
   const handleRegionChange = (regionCode) => {
@@ -110,17 +110,7 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
       );
       setSelectedPrograms(prev => prev.filter(k => regionKeys.has(k)));
     }
-    setExpandedMembers(new Set());
-  };
-
-  // ── Course filter helpers ──────────────────────────────────────────────────
-
-  const toggleCourseSelection = (courseName) => {
-    setSelectedCourses(prev =>
-      prev.includes(courseName)
-        ? prev.filter(c => c !== courseName)
-        : [...prev, courseName]
-    );
+    clearExpanded();
   };
 
   // ── Export helpers ─────────────────────────────────────────────────────────
@@ -145,15 +135,6 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
     exportAllCostCentersToExcel(
       allCostCenters.map(cc => getCostCenterReport(cc.key, programMap, selectedCourses)).filter(Boolean)
     );
-  };
-
-  // ── Member expand ──────────────────────────────────────────────────────────
-
-  const toggleMemberExpansion = (rowKey) => {
-    const next = new Set(expandedMembers);
-    if (next.has(rowKey)) next.delete(rowKey);
-    else next.add(rowKey);
-    setExpandedMembers(next);
   };
 
   // ── Report title ───────────────────────────────────────────────────────────
@@ -263,10 +244,10 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
           {showCourseFilter && (
             <div className="course-filter-panel">
               <div className="course-filter-actions">
-                <button className="filter-action-button" onClick={() => setSelectedCourses(allCourses)}>
+                <button className="filter-action-button" onClick={selectAllCourses}>
                   Select All
                 </button>
-                <button className="filter-action-button" onClick={() => setSelectedCourses([])}>
+                <button className="filter-action-button" onClick={deselectAllCourses}>
                   Deselect All
                 </button>
               </div>
