@@ -12,7 +12,7 @@ import { REQUIRED_COURSES } from './courses';
  */
 export const LEADERSHIP_COURSES = [
   'Intro to Leadership',
-  'Relationship Based Leading'
+  'Relationship-Based Leading'
 ];
 
 /**
