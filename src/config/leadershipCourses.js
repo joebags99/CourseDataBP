@@ -12,7 +12,7 @@ import { REQUIRED_COURSES } from './courses';
  */
 export const LEADERSHIP_COURSES = [
   'Intro to Leadership',
-  'Relationship Based Leadership'
+  'Relationship Based Leading'
 ];
 
 /**
@@ -21,8 +21,10 @@ export const LEADERSHIP_COURSES = [
 export const INTRO_TO_LEADERSHIP = 'Intro to Leadership';
 
 /**
- * Leaders hired on or after this date are not held accountable for
- * "Intro to Leadership" (they joined too recently to have taken it).
+ * Leaders hired BEFORE this date are not held accountable for "Intro to
+ * Leadership" (they predate the requirement / are grandfathered out). Leaders
+ * hired on or after this date must take it. Example: a Dec 30 2024 hire is
+ * exempt; a Jan 1 2025 hire is required.
  */
 export const INTRO_OMIT_CUTOFF = new Date('2025-01-01');
 

@@ -64,11 +64,12 @@ export function getLeaders(hierarchy) {
  * @returns {{status: string, enrollment: Object|null}}
  */
 function getCourseStatus(courses, trackedCourse, hireDate) {
-  // Intro to Leadership is omitted for leaders hired on/after the cutoff.
+  // Intro to Leadership is omitted for leaders hired BEFORE the cutoff
+  // (they predate the requirement). Leaders without a hire date are not omitted.
   if (
     isIntroToLeadership(trackedCourse) &&
     hireDate &&
-    hireDate >= INTRO_OMIT_CUTOFF
+    hireDate < INTRO_OMIT_CUTOFF
   ) {
     return { status: 'na', enrollment: null };
   }
