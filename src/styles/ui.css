@@ -1,0 +1,472 @@
+/* =====================================================================
+   Shared UI design system
+   The single source of truth for the building blocks that every report
+   tab uses (cards, controls, tables, buttons, badges, states). Component
+   stylesheets should only hold styles that are genuinely unique to them.
+   Uses tokens from index.css — no hardcoded colors.
+   ===================================================================== */
+
+/* ---- Section / report scaffolding ---- */
+.report-summary {
+  margin-bottom: var(--spacing-xl);
+}
+.report-summary h2 {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+.section-header h3 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+/* ---- Controls ---- */
+.controls-section {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.control-group > label,
+.control-group .control-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+/* Every dropdown in a controls area / sort bar gets one look — no need to
+   rename each component's bespoke select class. */
+.controls-section select,
+.filters-bar select,
+.filter-select,
+.sort-controls select,
+.control-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.controls-section select:hover,
+.filter-select:hover,
+.sort-controls select:hover,
+.control-select:hover {
+  border-color: var(--primary-blue);
+}
+.controls-section select:focus,
+.filters-bar select:focus,
+.filter-select:focus,
+.sort-controls select:focus,
+.control-select:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(0, 136, 254, 0.15);
+}
+
+.toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+}
+.toggle-control input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-blue);
+}
+.toggle-control span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.toggle-description {
+  margin: var(--spacing-xs) 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.sort-controls label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ---- Filter panel (course / program multi-select) ---- */
+.course-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+.course-filter-header label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.filter-toggle-button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+}
+.filter-toggle-button:hover {
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+.course-filter-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+.course-filter-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+.filter-action-button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+.filter-action-button:hover {
+  background: var(--primary-blue);
+  color: #fff;
+  border-color: var(--primary-blue);
+}
+.course-checkboxes,
+.program-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--spacing-xs);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+.course-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.course-checkbox-label:hover {
+  background: var(--bg-tertiary);
+}
+.course-checkbox-label input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-blue);
+}
+.course-checkbox-label span {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+/* ---- Buttons ---- */
+.btn,
+.export-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+.btn-primary,
+.export-button {
+  background: var(--primary-blue);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled),
+.export-button:hover:not(:disabled) {
+  background: var(--primary-blue-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn-secondary,
+.export-button.secondary,
+.secondary-button {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+.btn-secondary:hover:not(:disabled),
+.export-button.secondary:hover:not(:disabled),
+.secondary-button:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--primary-blue);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+.export-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+/* ---- Stat / summary cards ---- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+.stat-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+  line-height: 1.1;
+  margin-bottom: var(--spacing-xs);
+}
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.stat-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xs);
+}
+/* Semantic accents (left bar) */
+.stat-card.success { border-left: 4px solid var(--success); }
+.stat-card.warning { border-left: 4px solid var(--warning); }
+.stat-card.danger  { border-left: 4px solid var(--danger); }
+.stat-card.info    { border-left: 4px solid var(--primary-blue); }
+
+/* ---- Tables ---- */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+/* Direct-child selectors so the nested .course-table in expanded rows keeps
+   its own styling instead of inheriting the outer table look. */
+.table-container > table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table-container > table > thead > tr > th {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+.table-container > table > tbody > tr > td {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+.table-container > table > tbody > tr {
+  transition: background var(--transition-fast);
+}
+.table-container > table > tbody > tr:hover {
+  background: var(--bg-secondary);
+}
+.table-container > table > tbody > tr.expanded {
+  background: var(--bg-secondary);
+}
+.name-cell { font-weight: 600; }
+.email-cell { color: var(--text-secondary); font-size: 0.85rem; }
+.number-cell { text-align: center; font-variant-numeric: tabular-nums; }
+.center-cell { text-align: center; }
+.supervisor-cell { color: var(--text-secondary); font-size: 0.85rem; }
+.expand-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.expand-button:hover { color: var(--primary-blue); }
+
+/* Nested detail table inside expanded rows */
+.detail-row { background: var(--bg-tertiary) !important; }
+.table-container > table > tbody > tr.detail-row > td { padding: 0; }
+.course-details { padding: var(--spacing-lg); }
+.course-details h4 { margin: 0 0 var(--spacing-md) 0; font-size: 1rem; }
+.course-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.course-table th {
+  background: var(--bg-secondary);
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+.course-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+.course-table tbody tr:last-child td { border-bottom: none; }
+
+/* ---- Badges & pills ---- */
+.completion-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.completion-badge.completion-high { background: var(--success-bg); color: var(--success); }
+.completion-badge.completion-medium { background: var(--warning-bg); color: var(--warning); }
+.completion-badge.completion-low { background: var(--orange-bg); color: var(--orange-strong); }
+.completion-badge.completion-none { background: var(--danger-bg); color: var(--danger); }
+
+.status-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+.status-badge.completed { background: var(--success-bg); color: var(--success); }
+.status-badge.in-progress { background: var(--warning-bg); color: var(--warning); }
+
+.status-pill {
+  display: inline-block;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.status-pill.complete { background: var(--success-bg); color: var(--success); }
+.status-pill.incomplete { background: var(--warning-bg); color: var(--warning); }
+.status-pill.missing { background: var(--danger-bg); color: var(--danger); }
+.status-pill.na { background: var(--muted-bg); color: var(--muted); font-size: 0.7rem; }
+
+.badge-no-data {
+  display: inline-block;
+  margin-left: var(--spacing-sm);
+  padding: 2px 6px;
+  background: var(--muted-bg);
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.no-data-indicator,
+.no-data-text,
+.placeholder-email { color: var(--text-secondary); }
+.placeholder-email { font-style: italic; }
+
+/* ---- Empty / info states ---- */
+.info-message,
+.empty-state {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+.info-message p,
+.empty-state p {
+  margin: var(--spacing-sm) 0;
+  color: var(--text-secondary);
+}
+.empty-state {
+  color: var(--text-secondary);
+}
+.no-courses-message {
+  padding: var(--spacing-md);
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .section-header { flex-direction: column; align-items: flex-start; }
+  .export-buttons { flex-direction: column; }
+  .export-button, .btn { width: 100%; }
+}

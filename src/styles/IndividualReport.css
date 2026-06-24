@@ -211,10 +211,10 @@
   transition: stroke-dasharray 0.5s ease;
 }
 
-.ir-ring-fill.rate-high  { stroke: #16a34a; }
-.ir-ring-fill.rate-medium { stroke: #ca8a04; }
-.ir-ring-fill.rate-low   { stroke: #ea580c; }
-.ir-ring-fill.rate-none  { stroke: #dc2626; }
+.ir-ring-fill.rate-high  { stroke: var(--success); }
+.ir-ring-fill.rate-medium { stroke: var(--warning); }
+.ir-ring-fill.rate-low   { stroke: var(--orange-strong); }
+.ir-ring-fill.rate-none  { stroke: var(--danger); }
 
 .ir-ring-label {
   position: absolute;
@@ -406,7 +406,7 @@
 }
 
 .ir-export-button:hover {
-  background: #0070d1;
+  background: var(--primary-blue-hover);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }

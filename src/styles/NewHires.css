@@ -376,20 +376,7 @@
   border-color: var(--primary-blue);
 }
 
-.export-button {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--primary-emerald);
-  color: white;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  transition: all var(--transition-fast);
-}
-
-.export-button:hover {
-  background: var(--secondary-green);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
+/* export button styled by shared ui.css */
 
 .recent-hires-table {
   margin-top: var(--spacing-lg);

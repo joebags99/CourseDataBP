@@ -219,7 +219,7 @@ export default function IndividualReport({ data }) {
           {/* Export */}
           <div className="ir-export-row">
             <button className="ir-export-button" onClick={handleExport}>
-              Export to Excel
+              📥 Export to Excel
             </button>
           </div>
         </div>

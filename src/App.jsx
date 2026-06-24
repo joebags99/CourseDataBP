@@ -78,17 +78,25 @@ function App() {
     }
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'newhires', label: 'New Hires', icon: '🎓' },
-    { id: 'supervisors', label: 'Supervisor Reports', icon: '👔' },
-    { id: 'leadership', label: 'Leadership Compliance', icon: '🧭' },
-    { id: 'costcenters', label: 'Cost Center Reports', icon: '🏢' },
-    { id: 'individual', label: 'Individual Report', icon: '👤' },
-    { id: 'vpreport', label: 'VP Report', icon: '🏛️' },
-    { id: 'yoy', label: 'Year-over-Year', icon: '📈' },
-    { id: 'trends', label: 'Trends', icon: '📉' },
-    { id: 'staff', label: 'Staff Analysis', icon: '👥' }
+  const tabGroups = [
+    { label: 'Overview', tabs: [
+      { id: 'overview', label: 'Overview', icon: '📊' },
+    ] },
+    { label: 'Compliance', tabs: [
+      { id: 'newhires', label: 'New Hires', icon: '🎓' },
+      { id: 'supervisors', label: 'Supervisor Reports', icon: '👔' },
+      { id: 'leadership', label: 'Leadership Compliance', icon: '🧭' },
+      { id: 'costcenters', label: 'Cost Center Reports', icon: '🏢' },
+    ] },
+    { label: 'People', tabs: [
+      { id: 'individual', label: 'Individual Report', icon: '👤' },
+      { id: 'vpreport', label: 'VP Report', icon: '🏛️' },
+      { id: 'staff', label: 'Staff Analysis', icon: '👥' },
+    ] },
+    { label: 'Trends', tabs: [
+      { id: 'yoy', label: 'Year-over-Year', icon: '📈' },
+      { id: 'trends', label: 'Trends', icon: '📉' },
+    ] },
   ];
 
   return (
@@ -144,15 +152,22 @@ function App() {
         ) : (
           <>
             <nav className="tab-nav">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  <span className="tab-icon">{tab.icon}</span>
-                  <span className="tab-label">{tab.label}</span>
-                </button>
+              {tabGroups.map(group => (
+                <div className="tab-group" key={group.label}>
+                  <span className="tab-group-label">{group.label}</span>
+                  <div className="tab-group-buttons">
+                    {group.tabs.map(tab => (
+                      <button
+                        key={tab.id}
+                        className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+                        onClick={() => setActiveTab(tab.id)}
+                      >
+                        <span className="tab-icon">{tab.icon}</span>
+                        <span className="tab-label">{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
 

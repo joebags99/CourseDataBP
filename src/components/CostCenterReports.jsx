@@ -274,14 +274,14 @@ export default function CostCenterReports({ data, courseGroups, groupVersions })
             disabled={!costCenterReport}
             className="export-button"
           >
-            Export Selected to Excel
+            📥 Export Selected to Excel
           </button>
           <button
             onClick={handleExportAll}
             className="export-button secondary"
             title="Export every cost center to a single Excel file"
           >
-            Export All Cost Centers
+            📥 Export All Cost Centers
           </button>
         </div>
       </div>

@@ -136,7 +136,7 @@ export default function VPReport({ data }) {
           </p>
         </div>
         <button className="export-button" onClick={handleExport} disabled={rows.length === 0}>
-          Download CSV
+          📥 Export CSV
         </button>
       </div>
 
