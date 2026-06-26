@@ -6,6 +6,7 @@
  * each reporting cycle as the curriculum changes.
  */
 import { REQUIRED_COURSES } from './courses';
+import { isCourseComplete } from '../data/dataModel';
 
 /**
  * Leadership-specific courses (in addition to the org-wide Required Courses).
@@ -72,10 +73,12 @@ export function isIntroToLeadership(courseName) {
 
 /**
  * Whether a raw enrollment record is an Intro to Leadership enrollment that
- * should be EXCLUDED from all tracking, because the person was hired before
- * the cutoff (Intro to Leadership only applies to people hired on/after
- * Jan 1, 2025). Such enrollments must not count as completed OR not-completed
- * anywhere in the app.
+ * should be EXCLUDED from all tracking. Intro to Leadership only applies to
+ * people hired on/after the cutoff (Jan 1, 2025). For someone hired earlier:
+ *   - if they have NOT completed it  -> exclude (it doesn't apply to them; it
+ *     must not count as not-completed anywhere, and surfaces as N/A)
+ *   - if they HAVE completed it      -> keep it, so it still counts as a
+ *     completion.
  *
  * A record with no known hire date is NOT excluded (we can't prove the person
  * predates the requirement), matching the leadership report's 'na' rule.
@@ -89,5 +92,6 @@ export function isIntroExemptRecord(record) {
   if (!raw) return false;
   const hire = raw instanceof Date ? raw : new Date(raw);
   if (Number.isNaN(hire.getTime())) return false;
-  return hire < INTRO_OMIT_CUTOFF;
+  if (hire >= INTRO_OMIT_CUTOFF) return false;     // hired on/after cutoff -> applies
+  return !isCourseComplete(record);                // pre-cutoff: drop only if not completed
 }

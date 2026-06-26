@@ -64,8 +64,19 @@ export function getLeaders(hierarchy) {
  * @returns {{status: string, enrollment: Object|null}}
  */
 function getCourseStatus(courses, trackedCourse, hireDate) {
-  // Intro to Leadership is omitted for leaders hired BEFORE the cutoff
-  // (they predate the requirement). Leaders without a hire date are not omitted.
+  // Find any enrollment that matches this tracked course; prefer a completed one.
+  const matches = courses.filter(c => matchesTrackedCourse(c.course, trackedCourse));
+
+  // Completion always counts — even a pre-cutoff hire who completed Intro to
+  // Leadership is 'complete'.
+  const completed = matches.find(c => isCourseComplete(c));
+  if (completed) {
+    return { status: 'complete', enrollment: completed };
+  }
+
+  // Not completed: Intro to Leadership is omitted (N/A) for leaders hired BEFORE
+  // the cutoff (it doesn't apply to them). Leaders without a hire date are not
+  // omitted.
   if (
     isIntroToLeadership(trackedCourse) &&
     hireDate &&
@@ -74,15 +85,8 @@ function getCourseStatus(courses, trackedCourse, hireDate) {
     return { status: 'na', enrollment: null };
   }
 
-  // Find any enrollment that matches this tracked course; prefer a completed one.
-  const matches = courses.filter(c => matchesTrackedCourse(c.course, trackedCourse));
   if (matches.length === 0) {
     return { status: 'missing', enrollment: null };
-  }
-
-  const completed = matches.find(c => isCourseComplete(c));
-  if (completed) {
-    return { status: 'complete', enrollment: completed };
   }
   return { status: 'incomplete', enrollment: matches[0] };
 }

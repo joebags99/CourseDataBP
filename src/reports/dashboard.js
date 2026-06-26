@@ -84,12 +84,16 @@ function isCourseExempt(courseName, hireDate) {
 /**
  * Status of one person on one tracked course:
  * 'complete' | 'incomplete' | 'missing' | 'na'.
+ *
+ * Completion always wins: a pre-cutoff hire who completed Intro to Leadership
+ * still counts as complete. Only a pre-cutoff hire who has NOT completed it is
+ * 'na' (the course doesn't apply to them).
  */
 function personCourseStatus(person, courseName, hireDate) {
-  if (isCourseExempt(courseName, hireDate)) return 'na';
   const matches = (person.courses || []).filter(c => matchesTrackedCourse(c.course, courseName));
-  if (matches.length === 0) return 'missing';
-  return matches.some(c => isCourseComplete(c)) ? 'complete' : 'incomplete';
+  if (matches.some(c => isCourseComplete(c))) return 'complete';
+  if (isCourseExempt(courseName, hireDate)) return 'na';
+  return matches.length === 0 ? 'missing' : 'incomplete';
 }
 
 /**
@@ -153,12 +157,15 @@ export function buildDashboardReport(hierarchy) {
   );
 
   const leadershipCourses = LEADERSHIP_COURSES.map(course => {
-    // Intro to Leadership is exempt for leaders hired before the cutoff;
-    // those leaders are excluded from the denominator entirely.
+    // Intro to Leadership doesn't apply to leaders hired before the cutoff who
+    // have NOT completed it — they're excluded from the denominator. Pre-cutoff
+    // leaders who DID complete it are kept (they count as completions).
     const isExempt = isIntroToLeadership(course)
       ? (leader) => {
           const hireDate = deriveHireDate(leader.courses);
-          return hireDate && hireDate < INTRO_OMIT_CUTOFF;
+          if (!(hireDate && hireDate < INTRO_OMIT_CUTOFF)) return false;
+          const matches = (leader.courses || []).filter(c => matchesTrackedCourse(c.course, course));
+          return !matches.some(c => isCourseComplete(c));
         }
       : null;
     return summarizeCourse(leaders, course, { isExempt });
