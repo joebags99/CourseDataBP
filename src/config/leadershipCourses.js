@@ -11,7 +11,7 @@ import { REQUIRED_COURSES } from './courses';
  * Leadership-specific courses (in addition to the org-wide Required Courses).
  */
 export const LEADERSHIP_COURSES = [
-  'Intro to Leadership',
+  'Introduction to Leadership',
   'Relationship-Based Leading'
 ];
 
