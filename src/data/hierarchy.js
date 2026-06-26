@@ -47,26 +47,8 @@ export function buildHierarchy(rawData) {
   // Create a map of employee identifier -> employee data
   // We'll use both email (if available) and name+ID for lookups
   const employeeMap = new Map();
-  const employeeByNameId = new Map(); // "name-id" / "name" -> employee
-  const employeeById = new Map();     // supervisor ID -> employee (the stable identity)
+  const employeeByNameId = new Map(); // Map of "name-id" -> employee
   const supervisorPlaceholders = new Map(); // Supervisors mentioned but not in data
-
-  // Resolve a "Name - ID" supervisor reference to an employee (or placeholder).
-  // Matches by the numeric ID first, so name variants that share an ID
-  // ("Joe", "Joe K", "Joe Konkle" - 4821) collapse to one person.
-  function resolveSupervisor(sup) {
-    if (sup.id && employeeById.has(sup.id)) return employeeById.get(sup.id);
-    const nameNorm = normalizeName(sup.name);
-    const byName = employeeByNameId.get(`${nameNorm}-${sup.id}`) || employeeByNameId.get(nameNorm);
-    if (byName) return byName;
-    for (const [, candidate] of employeeMap) {
-      if (namesMatch(candidate.displayName, sup.name)) {
-        employeeByNameId.set(nameNorm, candidate);
-        return candidate;
-      }
-    }
-    return null;
-  }
 
   // First pass: collect all unique employees with course data
   rawData.forEach(record => {
@@ -100,12 +82,11 @@ export function buildHierarchy(rawData) {
       const nameKey = normalizeName(displayName);
       employeeByNameId.set(nameKey, employee);
 
-      // A self-reference ("they list themselves as their own supervisor first")
-      // reveals this employee's own ID — index it as the canonical identity.
+      // If they have a supervisor ID in the data, also index by that
       supervisors.forEach(sup => {
         if (namesMatch(displayName, sup.name)) {
-          employeeByNameId.set(`${normalizeName(sup.name)}-${sup.id}`, employee);
-          if (sup.id) employeeById.set(sup.id, employee);
+          const nameIdKey = `${normalizeName(sup.name)}-${sup.id}`;
+          employeeByNameId.set(nameIdKey, employee);
         }
       });
     }
@@ -115,54 +96,90 @@ export function buildHierarchy(rawData) {
     employee.courses.push(mapCourseRecord(record));
   });
 
-  // Second pass: create ONE placeholder per absent supervisor, keyed by ID so
-  // name variants of the same person don't fragment into separate nodes.
+  // Second pass: Create placeholder entries for supervisors mentioned but not in the data
   employeeMap.forEach((employee) => {
     employee.supervisors.forEach(sup => {
-      if (resolveSupervisor(sup)) return; // already a real employee / placeholder
+      const supNameNorm = normalizeName(sup.name);
+      const supNameIdKey = `${supNameNorm}-${sup.id}`;
 
-      const key = sup.id ? `id:${sup.id}` : `name:${normalizeName(sup.name)}`;
-      const existing = supervisorPlaceholders.get(key);
-      if (existing) {
-        // Keep the most complete name variant for display
-        if (sup.name.length > existing.displayName.length) {
-          existing.displayName = sup.name;
-          existing.legalFirstname = sup.name.split(' ')[0] || '';
-          existing.preferredFirstname = sup.name.split(' ')[0] || '';
-          existing.lastname = sup.name.split(' ').slice(1).join(' ') || '';
+      // Check if this supervisor exists in our employee map
+      let existingBySupervisorName = employeeByNameId.get(supNameNorm);
+      let existingByNameId = employeeByNameId.get(supNameIdKey);
+
+      // Try flexible matching if not found
+      if (!existingBySupervisorName && !existingByNameId) {
+        for (const [, emp] of employeeMap) {
+          if (namesMatch(emp.displayName, sup.name)) {
+            existingBySupervisorName = emp;
+            // Cache this match
+            employeeByNameId.set(supNameNorm, emp);
+            employeeByNameId.set(supNameIdKey, emp);
+            break;
+          }
         }
-        return;
       }
 
-      const emailPart = sup.name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
-      const placeholder = {
-        email: `${emailPart}.${sup.id || 'x'}@placeholder.local`,
-        legalFirstname: sup.name.split(' ')[0] || '',
-        preferredFirstname: sup.name.split(' ')[0] || '',
-        lastname: sup.name.split(' ').slice(1).join(' ') || '',
-        displayName: sup.name,
-        supervisorId: sup.id,
-        supervisors: [],
-        isManager: true,
-        directReports: new Set(),
-        allReports: new Set(),
-        courses: [],
-        hasData: false, // This person has no course enrollment data
-        isPlaceholder: true
-      };
+      if (!existingBySupervisorName && !existingByNameId) {
+        // Supervisor doesn't exist in our data, create a placeholder
+        if (!supervisorPlaceholders.has(supNameIdKey)) {
+          // Generate a placeholder email from the name
+          const emailPart = sup.name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
+          const placeholderEmail = `${emailPart}@placeholder.local`;
 
-      supervisorPlaceholders.set(key, placeholder);
-      employeeMap.set(placeholder.email, placeholder);
-      employeeByNameId.set(normalizeName(sup.name), placeholder);
-      if (sup.id) employeeById.set(sup.id, placeholder);
+          const placeholder = {
+            email: placeholderEmail,
+            legalFirstname: sup.name.split(' ')[0] || '',
+            preferredFirstname: sup.name.split(' ')[0] || '',
+            lastname: sup.name.split(' ').slice(1).join(' ') || '',
+            displayName: sup.name,
+            supervisorId: sup.id,
+            supervisors: [],
+            isManager: true,
+            directReports: new Set(),
+            allReports: new Set(),
+            courses: [],
+            hasData: false, // This person has no course enrollment data
+            isPlaceholder: true
+          };
+
+          supervisorPlaceholders.set(supNameIdKey, placeholder);
+          employeeMap.set(placeholderEmail, placeholder);
+          employeeByNameId.set(supNameNorm, placeholder);
+          employeeByNameId.set(supNameIdKey, placeholder);
+        }
+      }
     });
   });
 
-  // Third pass: link reports to supervisors (resolved by ID first)
+  // Third pass: Build supervisor -> employee relationships
   employeeMap.forEach((employee) => {
     employee.supervisors.forEach(sup => {
-      const supervisor = resolveSupervisor(sup);
-      if (supervisor && supervisor.email !== employee.email) {
+      const supNameNorm = normalizeName(sup.name);
+      const supNameIdKey = `${supNameNorm}-${sup.id}`;
+
+      // Find the supervisor (could be a real employee or a placeholder)
+      // Try exact matches first
+      let supervisor = employeeByNameId.get(supNameIdKey);
+      if (!supervisor) {
+        supervisor = employeeByNameId.get(supNameNorm);
+      }
+
+      // If still not found, try flexible matching (without middle names)
+      if (!supervisor) {
+        // Search through all employees for a name match
+        for (const [, emp] of employeeMap) {
+          if (namesMatch(emp.displayName, sup.name)) {
+            supervisor = emp;
+            // Cache this match for future lookups
+            employeeByNameId.set(supNameNorm, supervisor);
+            employeeByNameId.set(supNameIdKey, supervisor);
+            break;
+          }
+        }
+      }
+
+      if (supervisor) {
+        // Add this employee as a direct report of the supervisor
         supervisor.directReports.add(employee.email);
       }
     });
