@@ -17,9 +17,11 @@ export const LEADERSHIP_COURSES = [
 ];
 
 /**
- * Exact display name of the Intro to Leadership course used by the omit rule.
+ * Display name of the Introduction to Leadership course used by the omit rule.
+ * Must stay in sync with the LEADERSHIP_COURSES entry above so the exemption
+ * matching recognizes the same course.
  */
-export const INTRO_TO_LEADERSHIP = 'Intro to Leadership';
+export const INTRO_TO_LEADERSHIP = 'Introduction to Leadership';
 
 /**
  * Leaders hired BEFORE this date are not held accountable for "Intro to
