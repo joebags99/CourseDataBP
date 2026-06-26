@@ -17,6 +17,7 @@ import { isCourseComplete, completionRate } from '../data/dataModel';
 import { REQUIRED_COURSES } from '../config/courses';
 import {
   LEADERSHIP_COURSES,
+  TRACKED_COURSES,
   INTRO_OMIT_CUTOFF,
   matchesTrackedCourse,
   isIntroToLeadership
@@ -73,18 +74,69 @@ function summarizeCourse(people, courseName, { isExempt } = {}) {
 }
 
 /**
+ * Whether a course is exempt for a person (only Intro to Leadership, for
+ * people hired before the cutoff).
+ */
+function isCourseExempt(courseName, hireDate) {
+  return isIntroToLeadership(courseName) && hireDate && hireDate < INTRO_OMIT_CUTOFF;
+}
+
+/**
+ * Status of one person on one tracked course:
+ * 'complete' | 'incomplete' | 'missing' | 'na'.
+ */
+function personCourseStatus(person, courseName, hireDate) {
+  if (isCourseExempt(courseName, hireDate)) return 'na';
+  const matches = (person.courses || []).filter(c => matchesTrackedCourse(c.course, courseName));
+  if (matches.length === 0) return 'missing';
+  return matches.some(c => isCourseComplete(c)) ? 'complete' : 'incomplete';
+}
+
+/**
+ * Build one per-employee row across all tracked courses (core + leadership).
+ */
+function buildEmployeeRow(person, leaderEmails) {
+  const hireDate = deriveHireDate(person.courses);
+  const courseStatus = {};
+  TRACKED_COURSES.forEach(course => {
+    courseStatus[course] = personCourseStatus(person, course, hireDate);
+  });
+  const applicable = TRACKED_COURSES.filter(c => courseStatus[c] !== 'na');
+  const completedCount = applicable.filter(c => courseStatus[c] === 'complete').length;
+  return {
+    displayName: person.displayName,
+    email: person.isPlaceholder ? '' : person.email,
+    isLeader: leaderEmails.has(person.email),
+    hireDate,
+    courseStatus,
+    applicableCount: applicable.length,
+    completedCount,
+    completionRate: completionRate(completedCount, applicable.length, { mode: 'number1' })
+  };
+}
+
+/**
  * Build the Overall Completion Dashboard.
  * @param {Object} hierarchy - Hierarchy from buildHierarchy
  * @returns {{
  *   coreTrainings: Array,
  *   leadershipCourses: Array,
+ *   employees: Array,
+ *   trackedCourses: Array,
  *   coreStaffCount: number,
  *   leaderCount: number
  * }}
  */
 export function buildDashboardReport(hierarchy) {
   if (!hierarchy) {
-    return { coreTrainings: [], leadershipCourses: [], coreStaffCount: 0, leaderCount: 0 };
+    return {
+      coreTrainings: [],
+      leadershipCourses: [],
+      employees: [],
+      trackedCourses: TRACKED_COURSES,
+      coreStaffCount: 0,
+      leaderCount: 0
+    };
   }
 
   // All staff = every employee with actual course data (placeholders excluded).
@@ -112,9 +164,16 @@ export function buildDashboardReport(hierarchy) {
     return summarizeCourse(leaders, course, { isExempt });
   });
 
+  const leaderEmails = new Set(leaders.map(l => l.email));
+  const employees = allStaff
+    .map(person => buildEmployeeRow(person, leaderEmails))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
   return {
     coreTrainings,
     leadershipCourses,
+    employees,
+    trackedCourses: TRACKED_COURSES,
     coreStaffCount: allStaff.length,
     leaderCount: leaders.length
   };

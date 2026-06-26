@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { formatCourseName, sortCoursesByPriority } from '../config/courses';
 import { getDateString, completionStatusLabel } from '../data/dataModel';
 
@@ -28,36 +28,176 @@ function addFeedbackLinks(sheet, row) {
   }
 }
 
+/* =====================================================================
+   Excel visual styling
+   Uses xlsx-js-style so cell .s styles are actually written. Brand blue
+   matches the app/exports (#0088FE). Helpers below decorate sheets in
+   place WITHOUT changing any cell values, layout, or sheet names.
+   ===================================================================== */
+const FONT = 'Poppins';
+const PALETTE = {
+  brand: '0088FE', white: 'FFFFFF', title: '1F2937', body: '24292F',
+  border: 'D0D7DE', band: 'F6F8FB',
+  greenBg: 'DCFCE7', green: '166534',
+  amberBg: 'FEF9C3', amber: '854D0E',
+  orangeBg: 'FFEDD5', orange: '9A3412',
+  redBg: 'FEE2E2', red: '991B1B',
+  grayBg: 'F1F3F5', gray: '6B7280',
+};
+const THIN = { style: 'thin', color: { rgb: PALETTE.border } };
+const ALL_BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+
+function ensureCell(sheet, r, c) {
+  const ref = XLSX.utils.encode_cell({ r, c });
+  if (!sheet[ref]) sheet[ref] = { t: 's', v: '' };
+  return sheet[ref];
+}
+
+function rowHasContent(sheet, r, c0, c1) {
+  for (let c = c0; c <= c1; c++) {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (sheet[ref] && sheet[ref].v !== '' && sheet[ref].v != null) return true;
+  }
+  return false;
+}
+
+/** Pick a {bg, fg} for a status string or a percentage value, else null. */
+function conditionalColor(type, value) {
+  if (value == null || value === '') return null;
+  if (type === 'status') {
+    const v = String(value).toLowerCase();
+    if (v.includes('not started') || v.includes('missing')) return { bg: PALETTE.redBg, fg: PALETTE.red };
+    if (v.includes('in progress') || v.includes('incomplete')) return { bg: PALETTE.amberBg, fg: PALETTE.amber };
+    if (v === 'n/a' || v.includes('n/a')) return { bg: PALETTE.grayBg, fg: PALETTE.gray };
+    if (v.includes('complet')) return { bg: PALETTE.greenBg, fg: PALETTE.green };
+    return null;
+  }
+  // percentage
+  const n = parseFloat(String(value).replace('%', ''));
+  if (Number.isNaN(n)) return null;
+  if (n >= 100) return { bg: PALETTE.greenBg, fg: PALETTE.green };
+  if (n >= 70) return { bg: PALETTE.amberBg, fg: PALETTE.amber };
+  if (n > 0) return { bg: PALETTE.orangeBg, fg: PALETTE.orange };
+  return { bg: PALETTE.redBg, fg: PALETTE.red };
+}
+
 /**
- * Apply Excel styling to headers
- * @param {Object} sheet - XLSX sheet object
- * @param {string} range - Range of header cells (e.g., 'A1:F1')
+ * Style a table-shaped sheet in place: brand header row, hairline borders,
+ * zebra banding, and conditional coloring on status / percentage columns.
+ * Pure presentation — never changes values.
+ *
+ * @param {Object} sheet
+ * @param {string} headerRange - e.g. 'A1:G1' (only the row matters; columns
+ *   span the full sheet). Identifies which row holds the column headers.
+ * @param {Object} [opts]
+ * @param {number[]} [opts.statusCols] - 0-based columns to color as statuses
+ * @param {number[]} [opts.pctCols] - 0-based columns to color as percentages
+ * @param {number[]} [opts.titleRows] - 0-based rows above the header to bold as titles
  */
-function styleHeaders(sheet, range) {
-  const cellRefs = XLSX.utils.decode_range(range);
+function styleTable(sheet, headerRange, opts = {}) {
+  if (!sheet['!ref']) return;
+  const full = XLSX.utils.decode_range(sheet['!ref']);
+  const headerRow = XLSX.utils.decode_range(headerRange).s.r;
+  const c0 = full.s.c, c1 = full.e.c;
 
-  for (let col = cellRefs.s.c; col <= cellRefs.e.c; col++) {
-    for (let row = cellRefs.s.r; row <= cellRefs.e.r; row++) {
-      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-      if (!sheet[cellRef]) continue;
+  // Title rows (above the header)
+  (opts.titleRows || []).forEach(r => {
+    const cell = sheet[XLSX.utils.encode_cell({ r, c: c0 })];
+    if (cell) cell.s = { font: { name: FONT, sz: 14, bold: true, color: { rgb: PALETTE.title } } };
+  });
 
-      sheet[cellRef].s = {
-        font: {
-          name: 'Poppins',
-          sz: 11,
-          bold: true,
-          color: { rgb: 'FFFFFF' }
-        },
-        fill: {
-          fgColor: { rgb: '0088FE' }
-        },
-        alignment: {
-          vertical: 'center',
-          horizontal: 'left'
-        }
-      };
+  // Column type map (auto-detect by header text, then merge forced cols)
+  const colType = {};
+  for (let c = c0; c <= c1; c++) {
+    const cell = sheet[XLSX.utils.encode_cell({ r: headerRow, c })];
+    const h = cell ? String(cell.v || '').toLowerCase() : '';
+    if (!h) continue;
+    // Only true percentage columns (every one contains %, "percent", or "rate").
+    // Deliberately NOT "completion"/"compliance" alone, so count columns like
+    // "Total Completions" are not mistaken for percentages.
+    if (h === 'status') colType[c] = 'status';
+    else if (h.includes('%') || h.includes('percent') || h.includes('rate')) colType[c] = 'pct';
+  }
+  (opts.statusCols || []).forEach(c => { colType[c] = 'status'; });
+  (opts.pctCols || []).forEach(c => { colType[c] = 'pct'; });
+
+  // Header row
+  for (let c = c0; c <= c1; c++) {
+    const cell = ensureCell(sheet, headerRow, c);
+    cell.s = {
+      font: { name: FONT, sz: 11, bold: true, color: { rgb: PALETTE.white } },
+      fill: { patternType: 'solid', fgColor: { rgb: PALETTE.brand } },
+      alignment: { vertical: 'center', horizontal: 'left', wrapText: true },
+      border: ALL_BORDERS,
+    };
+  }
+
+  // Data rows
+  let band = 0;
+  for (let r = headerRow + 1; r <= full.e.r; r++) {
+    if (!rowHasContent(sheet, r, c0, c1)) { band = 0; continue; } // reset at separators
+    const banded = band % 2 === 1;
+    for (let c = c0; c <= c1; c++) {
+      const cell = ensureCell(sheet, r, c);
+      const cond = colType[c] ? conditionalColor(colType[c], cell.v) : null;
+      if (cond) {
+        cell.s = {
+          font: { name: FONT, sz: 10, bold: true, color: { rgb: cond.fg } },
+          fill: { patternType: 'solid', fgColor: { rgb: cond.bg } },
+          alignment: { vertical: 'center', horizontal: 'center' },
+          border: ALL_BORDERS,
+        };
+      } else {
+        cell.s = {
+          font: { name: FONT, sz: 10, color: { rgb: PALETTE.body } },
+          alignment: { vertical: 'center' },
+          border: ALL_BORDERS,
+          ...(banded ? { fill: { patternType: 'solid', fgColor: { rgb: PALETTE.band } } } : {}),
+        };
+      }
+    }
+    band++;
+  }
+}
+
+/**
+ * Light styling for key/value "summary" sheets: bold title row(s) and bold
+ * any left-column label ending in ':'. Pure presentation.
+ * @param {Object} sheet
+ * @param {Object} [opts]
+ * @param {number[]} [opts.titleRows] - 0-based title rows (default [0])
+ */
+function styleSummary(sheet, opts = {}) {
+  if (!sheet['!ref']) return;
+  const titleRows = opts.titleRows || [0];
+  const full = XLSX.utils.decode_range(sheet['!ref']);
+  for (let r = full.s.r; r <= full.e.r; r++) {
+    const aRef = XLSX.utils.encode_cell({ r, c: 0 });
+    const a = sheet[aRef];
+    if (titleRows.includes(r)) {
+      if (a) a.s = { font: { name: FONT, sz: 14, bold: true, color: { rgb: PALETTE.title } } };
+      continue;
+    }
+    if (a && a.v != null && String(a.v).trim().endsWith(':')) {
+      a.s = { font: { name: FONT, sz: 10, bold: true, color: { rgb: PALETTE.title } } };
+      const bRef = XLSX.utils.encode_cell({ r, c: 1 });
+      if (sheet[bRef]) {
+        const isRate = String(a.v).toLowerCase().includes('rate');
+        const cond = isRate ? conditionalColor('pct', sheet[bRef].v) : null;
+        sheet[bRef].s = cond
+          ? { font: { name: FONT, sz: 10, bold: true, color: { rgb: cond.fg } }, fill: { patternType: 'solid', fgColor: { rgb: cond.bg } } }
+          : { font: { name: FONT, sz: 10, color: { rgb: PALETTE.body } } };
+      }
     }
   }
+}
+
+/**
+ * Back-compat shim: older call sites styled only the header range. Now routes
+ * to the full table styler so every table gets borders + banding + coloring.
+ */
+function styleHeaders(sheet, range) {
+  styleTable(sheet, range);
 }
 
 /**
@@ -105,6 +245,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     { wch: 10 }
   ];
 
+  styleSummary(summarySheet, { titleRows: [0] });
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
   // My Status Report Sheet (supervisor's own courses)
@@ -159,8 +300,9 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
     { wch: 15 }  // Status
   ];
 
-  // Style the headers (row 6)
+  // Style the headers (row 6) + the key/value header block
   styleHeaders(myStatusSheet, 'A6:E6');
+  styleSummary(myStatusSheet, { titleRows: [0] });
 
   XLSX.utils.book_append_sheet(workbook, myStatusSheet, 'My Status Report');
 
@@ -249,6 +391,7 @@ export function exportSupervisorReportToExcel(reportData, filename = 'supervisor
   if (headerRowIndex >= 0) {
     styleHeaders(detailSheet, `A${headerRowIndex + 1}:F${headerRowIndex + 1}`);
   }
+  styleSummary(detailSheet, { titleRows: [0] });
 
   XLSX.utils.book_append_sheet(workbook, detailSheet, 'Direct Reports & Courses');
 
@@ -429,6 +572,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
 
   // Style the headers (row 5 - after feedback section)
   styleHeaders(sheet, 'A5:H5');
+  styleSummary(sheet, { titleRows: [0] });
 
   XLSX.utils.book_append_sheet(workbook, sheet, 'Direct Reports & Courses');
 
@@ -509,6 +653,7 @@ export function exportDirectReportsBySupervisor(supervisorReports, filename = 'd
 
   // Style the headers (row 5 - after feedback section)
   styleHeaders(listSheet, 'A5:I5');
+  styleSummary(listSheet, { titleRows: [0] });
 
   // Enable autofilter for the list view (starting from row 5)
   listSheet['!autofilter'] = { ref: `A5:I${listRows.length}` };
@@ -578,6 +723,9 @@ export function exportAllSupervisorReportsToExcel(supervisorsReports, filename =
     { wch: 18 }
   ];
 
+  styleTable(summarySheet, 'A4:H4');
+  styleSummary(summarySheet, { titleRows: [0] });
+  summarySheet['!autofilter'] = { ref: `A4:H${summaryData.length}` };
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
   // Write the workbook to file
@@ -645,6 +793,7 @@ export function exportIndividualReportToExcel(reportData) {
   if (headerRowIndex >= 0) {
     styleHeaders(sheet, `A${headerRowIndex + 1}:E${headerRowIndex + 1}`);
   }
+  styleSummary(sheet, { titleRows: [0] });
 
   XLSX.utils.book_append_sheet(workbook, sheet, 'My Status Report');
 
@@ -681,6 +830,7 @@ function buildCostCenterOverviewSheet(reports) {
 
   const sheet = XLSX.utils.aoa_to_sheet(overviewRows);
   styleHeaders(sheet, 'A4:F4');
+  styleSummary(sheet, { titleRows: [0] });
   sheet['!cols'] = [
     { wch: 40 }, { wch: 25 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }
   ];
@@ -725,6 +875,7 @@ export function exportCostCenterReportToExcel(reportData) {
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
   addFeedbackLinks(summarySheet, 7);
   summarySheet['!cols'] = [{ wch: 30 }, { wch: 45 }, { wch: 10 }];
+  styleSummary(summarySheet, { titleRows: [0] });
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
   // --- Staff & Courses Sheet (grouped by person) ---
@@ -769,6 +920,7 @@ export function exportCostCenterReportToExcel(reportData) {
   ];
   const headerRowIdx = detailRows.findIndex(r => r[0] === 'Name');
   if (headerRowIdx >= 0) styleHeaders(detailSheet, `A${headerRowIdx + 1}:F${headerRowIdx + 1}`);
+  styleSummary(detailSheet, { titleRows: [0] });
   XLSX.utils.book_append_sheet(workbook, detailSheet, 'Staff & Courses');
 
   // --- List View Sheet ---
@@ -865,6 +1017,7 @@ export function exportAllCostCentersToExcel(allReports) {
     { wch: 35 }, { wch: 25 }, { wch: 25 }, { wch: 45 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
   ];
   styleHeaders(sheet, 'A5:H5');
+  styleSummary(sheet, { titleRows: [0] });
   XLSX.utils.book_append_sheet(workbook, sheet, 'Staff & Courses');
 
   // --- List View Sheet ---
@@ -906,6 +1059,7 @@ export function exportAllCostCentersToExcel(allReports) {
     { wch: 35 }, { wch: 25 }, { wch: 25 }, { wch: 35 }, { wch: 45 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
   ];
   styleHeaders(listSheet, 'A5:I5');
+  styleSummary(listSheet, { titleRows: [0] });
   listSheet['!autofilter'] = { ref: `A5:I${listRows.length}` };
   XLSX.utils.book_append_sheet(workbook, listSheet, 'List View');
 
@@ -973,6 +1127,9 @@ export function exportTeamRosterToExcel(allTeamMembers, filename = 'team-roster'
     { wch: 18 }
   ];
 
+  styleTable(sheet, 'A5:I5');
+  styleSummary(sheet, { titleRows: [0] });
+  sheet['!autofilter'] = { ref: `A5:I${data.length}` };
   XLSX.utils.book_append_sheet(workbook, sheet, 'Team Roster');
 
   // Write the workbook to file
@@ -1040,7 +1197,9 @@ export function exportLeadershipReportToExcel(reportData, selection, filename) {
     ...trackedCourses.map(() => ({ wch: 18 })),
     { wch: 14 }
   ];
-  styleHeaders(allSheet, `A1:${lastCol(leaderHeader.length)}1`);
+  // Course columns start after Leader/Email/Supervisor(s)/Hire Date (cols 0-3).
+  const allCourseCols = trackedCourses.map((_, i) => 4 + i);
+  styleTable(allSheet, `A1:${lastCol(leaderHeader.length)}1`, { statusCols: allCourseCols });
   allSheet['!autofilter'] = { ref: `A1:${lastCol(leaderHeader.length)}${leaderRows.length}` };
   XLSX.utils.book_append_sheet(workbook, allSheet, 'All Leaders');
 
@@ -1061,7 +1220,9 @@ export function exportLeadershipReportToExcel(reportData, selection, filename) {
     ...trackedCourses.map(() => ({ wch: 18 })),
     { wch: 14 }
   ];
-  styleHeaders(detailSheet, `A1:${lastCol(detailHeader.length)}1`);
+  // Course columns start after Leader/Hire Date (cols 0-1).
+  const detailCourseCols = trackedCourses.map((_, i) => 2 + i);
+  styleTable(detailSheet, `A1:${lastCol(detailHeader.length)}1`, { statusCols: detailCourseCols });
   detailSheet['!autofilter'] = { ref: `A1:${lastCol(detailHeader.length)}${detailRows.length}` };
   XLSX.utils.book_append_sheet(workbook, detailSheet, 'Selected Detail');
 
@@ -1090,12 +1251,15 @@ export function exportLeadershipReportToExcel(reportData, selection, filename) {
 /**
  * Export the Overall Completion Dashboard to Excel.
  *
- * Produces two sheets, each with the same columns
- * (Course | Total Enrolled | Completed | Completion %):
+ * Produces three sheets:
  *   1. "Core Trainings"     - org-wide required courses across all staff
  *   2. "Leadership Courses" - leadership courses scoped to leaders only
+ *      (both: Course | Total Enrolled | Completed | Completion %)
+ *   3. "All Employees"      - one row per employee with per-tracked-course
+ *      status (Complete / In Progress / Not Started / N/A) + overall %.
  *
- * @param {Object} report - From buildDashboardReport ({ coreTrainings, leadershipCourses })
+ * @param {Object} report - From buildDashboardReport
+ *   ({ coreTrainings, leadershipCourses, employees, trackedCourses })
  * @param {string} [filename] - optional base filename (without extension)
  */
 export function exportDashboardReportToExcel(report, filename) {
@@ -1106,7 +1270,7 @@ export function exportDashboardReportToExcel(report, filename) {
 
   const workbook = XLSX.utils.book_new();
 
-  const buildSheet = (rows) => {
+  const buildSummarySheet = (rows) => {
     const header = ['Course', 'Total Enrolled', 'Completed', 'Completion %'];
     const aoa = [
       header,
@@ -1121,14 +1285,42 @@ export function exportDashboardReportToExcel(report, filename) {
 
   XLSX.utils.book_append_sheet(
     workbook,
-    buildSheet(report.coreTrainings || []),
+    buildSummarySheet(report.coreTrainings || []),
     'Core Trainings'
   );
   XLSX.utils.book_append_sheet(
     workbook,
-    buildSheet(report.leadershipCourses || []),
+    buildSummarySheet(report.leadershipCourses || []),
     'Leadership Courses'
   );
+
+  // ---- Sheet 3: All Employees (per-course status grid) ----
+  const trackedCourses = report.trackedCourses || [];
+  const employees = report.employees || [];
+  const empHeader = ['Name', 'Email', 'Leader', 'Hire Date', ...trackedCourses, 'Completion %'];
+  const empAoa = [
+    empHeader,
+    ...employees.map(e => [
+      e.displayName,
+      e.email || '—',
+      e.isLeader ? 'Yes' : 'No',
+      e.hireDate ? new Date(e.hireDate).toLocaleDateString() : '—',
+      ...trackedCourses.map(c => statusLabel(e.courseStatus[c])),
+      `${e.completionRate}%`
+    ])
+  ];
+  const empSheet = XLSX.utils.aoa_to_sheet(empAoa);
+  empSheet['!cols'] = [
+    { wch: 26 }, { wch: 30 }, { wch: 10 }, { wch: 14 },
+    ...trackedCourses.map(() => ({ wch: 18 })),
+    { wch: 14 }
+  ];
+  // Course status columns start after Name/Email/Leader/Hire Date (cols 0-3).
+  const empCourseCols = trackedCourses.map((_, i) => 4 + i);
+  const lastEmpCol = XLSX.utils.encode_col(empHeader.length - 1);
+  styleTable(empSheet, `A1:${lastEmpCol}1`, { statusCols: empCourseCols });
+  empSheet['!autofilter'] = { ref: `A1:${lastEmpCol}${empAoa.length}` };
+  XLSX.utils.book_append_sheet(workbook, empSheet, 'All Employees');
 
   const base = filename ? sanitizeName(filename) : `CompletionDashboard_${getDateString()}`;
   XLSX.writeFile(workbook, `${base}.xlsx`);
