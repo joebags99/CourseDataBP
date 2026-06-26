@@ -69,3 +69,25 @@ export function matchesTrackedCourse(courseName, trackedCourse) {
 export function isIntroToLeadership(courseName) {
   return matchesTrackedCourse(courseName, INTRO_TO_LEADERSHIP);
 }
+
+/**
+ * Whether a raw enrollment record is an Intro to Leadership enrollment that
+ * should be EXCLUDED from all tracking, because the person was hired before
+ * the cutoff (Intro to Leadership only applies to people hired on/after
+ * Jan 1, 2025). Such enrollments must not count as completed OR not-completed
+ * anywhere in the app.
+ *
+ * A record with no known hire date is NOT excluded (we can't prove the person
+ * predates the requirement), matching the leadership report's 'na' rule.
+ *
+ * @param {Object} record - Raw CSV record ({ course, lastHireDate, ... })
+ * @returns {boolean}
+ */
+export function isIntroExemptRecord(record) {
+  if (!record || !isIntroToLeadership(record.course)) return false;
+  const raw = record.lastHireDate;
+  if (!raw) return false;
+  const hire = raw instanceof Date ? raw : new Date(raw);
+  if (Number.isNaN(hire.getTime())) return false;
+  return hire < INTRO_OMIT_CUTOFF;
+}

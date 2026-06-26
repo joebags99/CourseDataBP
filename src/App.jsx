@@ -14,6 +14,7 @@ import VPReport from './components/VPReport';
 import DataDisclaimer from './components/DataDisclaimer';
 import { groupCourseVersions, extractBaseCourse, getUniqueCourses } from './data/courseGrouping';
 import { calculateSummaryStats, filterByDateRange } from './reports/analytics';
+import { isIntroExemptRecord } from './config/leadershipCourses';
 import './styles/App.css';
 
 function App() {
@@ -24,11 +25,21 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [dateRange, setDateRange] = useState({ start: null, end: null });
 
+  // Apply the org-wide tracking rules to the raw upload before any report sees
+  // it. Intro to Leadership only applies to people hired on/after Jan 1, 2025,
+  // so enrollments by earlier hires are dropped here once — that way EVERY
+  // report (supervisor, cost center, individual, analytics, dashboard, …)
+  // consistently excludes them from both completed and not-completed counts.
+  const trackedData = useMemo(
+    () => rawData.filter(record => !isIntroExemptRecord(record)),
+    [rawData]
+  );
+
   // Process course groupings
   const courseGroups = useMemo(() => {
-    if (rawData.length === 0) return {};
+    if (trackedData.length === 0) return {};
 
-    const uniqueCourses = getUniqueCourses(rawData);
+    const uniqueCourses = getUniqueCourses(trackedData);
     const groups = groupCourseVersions(uniqueCourses);
 
     // Create a map from original course name to group info
@@ -43,13 +54,13 @@ function App() {
     });
 
     return courseMap;
-  }, [rawData]);
+  }, [trackedData]);
 
   // Apply date range filter
   const filteredData = useMemo(() => {
-    if (!dateRange.start && !dateRange.end) return rawData;
-    return filterByDateRange(rawData, dateRange.start, dateRange.end);
-  }, [rawData, dateRange]);
+    if (!dateRange.start && !dateRange.end) return trackedData;
+    return filterByDateRange(trackedData, dateRange.start, dateRange.end);
+  }, [trackedData, dateRange]);
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
