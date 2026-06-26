@@ -1086,3 +1086,50 @@ export function exportLeadershipReportToExcel(reportData, selection, filename) {
   const base = filename ? sanitizeName(filename) : `LeadershipCompliance_${getDateString()}`;
   XLSX.writeFile(workbook, `${base}.xlsx`);
 }
+
+/**
+ * Export the Overall Completion Dashboard to Excel.
+ *
+ * Produces two sheets, each with the same columns
+ * (Course | Total Enrolled | Completed | Completion %):
+ *   1. "Core Trainings"     - org-wide required courses across all staff
+ *   2. "Leadership Courses" - leadership courses scoped to leaders only
+ *
+ * @param {Object} report - From buildDashboardReport ({ coreTrainings, leadershipCourses })
+ * @param {string} [filename] - optional base filename (without extension)
+ */
+export function exportDashboardReportToExcel(report, filename) {
+  if (!report) {
+    console.error('No dashboard report data provided');
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  const buildSheet = (rows) => {
+    const header = ['Course', 'Total Enrolled', 'Completed', 'Completion %'];
+    const aoa = [
+      header,
+      ...rows.map(r => [r.course, r.enrolled, r.completed, `${r.completionRate}%`])
+    ];
+    const sheet = XLSX.utils.aoa_to_sheet(aoa);
+    sheet['!cols'] = [{ wch: 45 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
+    styleHeaders(sheet, 'A1:D1');
+    sheet['!autofilter'] = { ref: `A1:D${aoa.length}` };
+    return sheet;
+  };
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheet(report.coreTrainings || []),
+    'Core Trainings'
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    buildSheet(report.leadershipCourses || []),
+    'Leadership Courses'
+  );
+
+  const base = filename ? sanitizeName(filename) : `CompletionDashboard_${getDateString()}`;
+  XLSX.writeFile(workbook, `${base}.xlsx`);
+}

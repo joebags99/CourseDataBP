@@ -1,0 +1,23 @@
+/* Overall Completion Dashboard — shared building blocks live in ui.css.
+   Only component-unique pieces remain here. */
+.dashboard-section {
+  margin-top: var(--spacing-xl);
+}
+
+.dashboard-section .section-header h3 {
+  font-size: 1.25rem;
+}
+
+.dashboard-note {
+  margin: var(--spacing-sm) 0 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* First column (course name) stays left-aligned; counts are centered via
+   .number-cell from ui.css. */
+.dashboard-table th:first-child,
+.dashboard-table td:first-child {
+  text-align: left;
+}

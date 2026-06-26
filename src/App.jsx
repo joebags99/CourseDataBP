@@ -7,6 +7,7 @@ import StaffAnalysis from './components/StaffAnalysis';
 import NewHires from './components/NewHires';
 import SupervisorReports from './components/SupervisorReports';
 import LeadershipReport from './components/LeadershipReport';
+import DashboardReport from './components/DashboardReport';
 import CostCenterReports from './components/CostCenterReports';
 import IndividualReport from './components/IndividualReport';
 import VPReport from './components/VPReport';
@@ -86,6 +87,7 @@ function App() {
       { id: 'newhires', label: 'New Hires', icon: '🎓' },
       { id: 'supervisors', label: 'Supervisor Reports', icon: '👔' },
       { id: 'leadership', label: 'Leadership Compliance', icon: '🧭' },
+      { id: 'dashboard', label: 'Completion Dashboard', icon: '✅' },
       { id: 'costcenters', label: 'Cost Center Reports', icon: '🏢' },
     ] },
     { label: 'People', tabs: [
@@ -248,6 +250,12 @@ function App() {
                     courseGroups={courseGroups}
                     groupVersions={groupVersions}
                   />
+                </div>
+              )}
+
+              {activeTab === 'dashboard' && (
+                <div className="tab-content">
+                  <DashboardReport data={filteredData} />
                 </div>
               )}
 
