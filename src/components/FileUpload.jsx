@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { parseCSV } from '../data/parseCsv';
+import { parseCSVWithMeta } from '../data/parseCsv';
 import '../styles/FileUpload.css';
 
 export default function FileUpload({ onDataLoaded }) {
@@ -21,7 +21,7 @@ export default function FileUpload({ onDataLoaded }) {
     setFileName(file.name);
 
     try {
-      const data = await parseCSV(file);
+      const { data, skipped } = await parseCSVWithMeta(file);
 
       if (data.length === 0) {
         setError('No valid data found in CSV file');
@@ -29,7 +29,7 @@ export default function FileUpload({ onDataLoaded }) {
         return;
       }
 
-      onDataLoaded(data);
+      onDataLoaded(data, skipped);
     } catch (err) {
       setError(err.message || 'Failed to parse CSV file');
     } finally {

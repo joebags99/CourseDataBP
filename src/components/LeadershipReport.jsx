@@ -6,6 +6,7 @@ import {
   buildCascadeRollup
 } from '../reports/leadership';
 import { exportLeadershipReportToExcel } from '../export/excel';
+import { courseShortLabel } from '../config/leadershipCourses';
 import { useToggleSet } from '../hooks/useToggleSet';
 import { useCourseFilter } from '../hooks/useCourseFilter';
 import { useSortComparator } from '../hooks/useSortComparator';
@@ -202,7 +203,7 @@ export default function LeadershipReport({ data }) {
                       checked={selectedCourses.includes(course)}
                       onChange={() => toggleCourse(course)}
                     />
-                    <span>{course}</span>
+                    <span title={course}>{courseShortLabel(course)}</span>
                   </label>
                 ))}
               </div>
@@ -261,7 +262,7 @@ export default function LeadershipReport({ data }) {
                 <th>Leader</th>
                 <th>Supervisor(s)</th>
                 <th>Hire Date</th>
-                {visibleCourses.map(c => <th key={c} className="course-col">{c}</th>)}
+                {visibleCourses.map(c => <th key={c} className="course-col" title={c}>{courseShortLabel(c)}</th>)}
                 <th>Compliance</th>
               </tr>
             </thead>
@@ -315,7 +316,7 @@ export default function LeadershipReport({ data }) {
               <tr>
                 <th>Leader</th>
                 <th>Hire Date</th>
-                {visibleCourses.map(c => <th key={c} className="course-col">{c}</th>)}
+                {visibleCourses.map(c => <th key={c} className="course-col" title={c}>{courseShortLabel(c)}</th>)}
                 <th>Compliance</th>
               </tr>
             </thead>

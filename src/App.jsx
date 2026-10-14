@@ -24,6 +24,7 @@ function App() {
   const [showRawNumbers, setShowRawNumbers] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [skippedInfo, setSkippedInfo] = useState(null); // rows the parser had to skip
 
   // Apply the org-wide tracking rules to the raw upload before any report sees
   // it. Intro to Leadership only applies to people hired on/after Jan 1, 2025,
@@ -77,18 +78,24 @@ function App() {
     return calculateSummaryStats(filteredData, courseGroups);
   }, [filteredData, courseGroups]);
 
-  const handleDataLoaded = (data) => {
+  const handleDataLoaded = (data, skipped = null) => {
     setRawData(data);
+    setSkippedInfo(skipped);
     setActiveTab('overview');
   };
 
   const handleClearData = () => {
     if (window.confirm('Are you sure you want to clear all data?')) {
       setRawData([]);
+      setSkippedInfo(null);
       setActiveTab('overview');
       setDateRange({ start: null, end: null });
     }
   };
+
+  // Transparency for the Overview card: what the parser/rules left out.
+  const introExcluded = rawData.length - trackedData.length;
+  const skippedNoEmail = skippedInfo ? skippedInfo.noEmail.rows : 0;
 
   const tabGroups = [
     { label: 'Overview', tabs: [
@@ -217,6 +224,29 @@ function App() {
                         </span>
                       </div>
                     </div>
+
+                    {(introExcluded > 0 || skippedNoEmail > 0) && (
+                      <div className="data-notices">
+                        {introExcluded > 0 && (
+                          <p className="data-notice">
+                            ℹ️ {introExcluded} Introduction to Leadership enrollment{introExcluded !== 1 ? 's' : ''} excluded
+                            from tracking — hired before Jan 1, 2025 and not completed (shown as N/A).
+                          </p>
+                        )}
+                        {skippedNoEmail > 0 && (
+                          <details className="data-notice warning">
+                            <summary>
+                              ⚠️ {skippedNoEmail} row{skippedNoEmail !== 1 ? 's' : ''} skipped — {skippedInfo.noEmail.people.length}{' '}
+                              {skippedInfo.noEmail.people.length === 1 ? 'person has' : 'people have'} no email in the export
+                              and are not included in any report. Fix in UKG and re-export.
+                            </summary>
+                            <ul>
+                              {skippedInfo.noEmail.people.map(p => <li key={p}>{p}</li>)}
+                            </ul>
+                          </details>
+                        )}
+                      </div>
+                    )}
 
                     <div className="action-buttons">
                       <button

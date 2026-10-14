@@ -48,7 +48,18 @@ export function parseDate(dateStr) {
  * @param {File} file - CSV file to parse
  * @returns {Promise<Array>} Array of parsed course completion records
  */
-export function parseCSV(file) {
+export async function parseCSV(file) {
+  const { data } = await parseCSVWithMeta(file);
+  return data;
+}
+
+/**
+ * Parse CSV file from UKG Learning Pro, also reporting rows that had to be
+ * skipped (so the UI can tell the user who is missing from the reports).
+ * @param {File} file - CSV file to parse
+ * @returns {Promise<{data: Array, skipped: {noEmail: {rows: number, people: string[]}, noCourse: {rows: number}}}>}
+ */
+export function parseCSVWithMeta(file) {
   return new Promise((resolve, reject) => {
     // First, parse without headers to get all rows
     // Use comma as delimiter (UKG exports are CSV, not TSV)
@@ -117,19 +128,34 @@ export function parseCSV(file) {
           console.log('Data rows count:', dataRows.length);
           console.log('First data row:', dataRows[0]);
 
-          // Transform and validate data
-          const parsedData = dataRows
-            .filter(row => {
-              // Find email and course columns
-              const emailIdx = headers.indexOf('email');
-              const courseIdx = headers.indexOf('course');
+          // Validate rows. People are keyed by email throughout the app, so a
+          // row without one can't be attributed to anyone and is skipped —
+          // but we record who they were so the UI can surface it.
+          const emailIdx = headers.indexOf('email');
+          const courseIdx = headers.indexOf('course');
+          const firstIdx = headers.indexOf('legalFirstname');
+          const lastIdx = headers.indexOf('lastname');
+          const skipped = { noEmail: { rows: 0, people: [] }, noCourse: { rows: 0 } };
+          const noEmailPeople = new Set();
 
-              if (emailIdx === -1 || courseIdx === -1) return false;
+          const validRows = dataRows.filter(row => {
+            if (emailIdx === -1 || courseIdx === -1) return false;
 
-              const hasEmail = row[emailIdx] && row[emailIdx].trim() !== '';
-              const hasCourse = row[courseIdx] && row[courseIdx].trim() !== '';
-              return hasEmail && hasCourse;
-            })
+            const hasEmail = row[emailIdx] && row[emailIdx].trim() !== '';
+            const hasCourse = row[courseIdx] && row[courseIdx].trim() !== '';
+            if (!hasCourse) { skipped.noCourse.rows++; return false; }
+            if (!hasEmail) {
+              skipped.noEmail.rows++;
+              const name = `${(row[firstIdx] || '').trim()} ${(row[lastIdx] || '').trim()}`.trim();
+              if (name) noEmailPeople.add(name);
+              return false;
+            }
+            return true;
+          });
+          skipped.noEmail.people = [...noEmailPeople].sort((a, b) => a.localeCompare(b));
+
+          // Transform data
+          const parsedData = validRows
             .map(row => {
               // Map row values to headers
               const rowData = {};
@@ -164,7 +190,7 @@ export function parseCSV(file) {
             return;
           }
 
-          resolve(parsedData);
+          resolve({ data: parsedData, skipped });
         } catch (error) {
           console.error('Parse error:', error);
           reject(new Error(`Failed to parse CSV: ${error.message}`));

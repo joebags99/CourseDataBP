@@ -13,8 +13,47 @@ import { isCourseComplete } from '../data/dataModel';
  */
 export const LEADERSHIP_COURSES = [
   'Introduction to Leadership',
-  'Relationship-Based Leading'
+  // Relationship-Based Leadership is a 3-part curriculum (one UKG course per
+  // part) so each session is tracked on its own. Canonical spelling is
+  // hyphenated; matching is hyphen/space-insensitive because UKG spells
+  // Part 2 as "Relationship Based".
+  'Relationship-Based Leadership Part 1: Five Dysfunctions of A Team',
+  'Relationship-Based Leadership Part 2: Foundations of Reflective Supervision, Leadership, and Practice',
+  'Relationship-Based Leadership Part 3: Predictive Index'
 ];
+
+/**
+ * Short labels for narrow column headers (compliance grids, Excel). Anything
+ * not listed here displays its full name.
+ */
+export const COURSE_SHORT_LABELS = {
+  'Relationship-Based Leadership Part 1: Five Dysfunctions of A Team': 'RBL Part 1: Five Dysfunctions',
+  'Relationship-Based Leadership Part 2: Foundations of Reflective Supervision, Leadership, and Practice': 'RBL Part 2: Reflective Supervision',
+  'Relationship-Based Leadership Part 3: Predictive Index': 'RBL Part 3: Predictive Index'
+};
+
+/**
+ * Display label for a tracked course in a column header.
+ * @param {string} course - Full tracked course name
+ * @returns {string}
+ */
+export function courseShortLabel(course) {
+  return COURSE_SHORT_LABELS[course] || course;
+}
+
+/**
+ * Normalize a course name for comparison: case-, hyphen- and
+ * whitespace-insensitive ("Relationship-Based" == "Relationship Based").
+ * @param {string} name
+ * @returns {string}
+ */
+export function normalizeCourseName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 /**
  * Display name of the Introduction to Leadership course used by the omit rule.
@@ -40,7 +79,7 @@ export const TRACKED_COURSES = (() => {
   const seen = new Set();
   const result = [];
   combined.forEach(course => {
-    const key = course.toLowerCase();
+    const key = normalizeCourseName(course);
     if (!seen.has(key)) {
       seen.add(key);
       result.push(course);
@@ -51,16 +90,18 @@ export const TRACKED_COURSES = (() => {
 
 /**
  * Fuzzy, bidirectional name match (same approach as isRequiredCourse in
- * courseConfig.js) so versioned titles like "Manager Essentials (2025 update)"
- * still match the tracked course "Manager Essentials".
+ * config/courses.js) so versioned titles like "Trauma 101 (2025 update)" still
+ * match the tracked course "Trauma 101". Comparison is case-, hyphen- and
+ * whitespace-insensitive so UKG spelling drift ("Relationship Based" vs
+ * "Relationship-Based") doesn't break tracking.
  * @param {string} courseName - Course name from the data
  * @param {string} trackedCourse - Tracked course name to compare against
  * @returns {boolean}
  */
 export function matchesTrackedCourse(courseName, trackedCourse) {
   if (!courseName || !trackedCourse) return false;
-  const a = courseName.toLowerCase();
-  const b = trackedCourse.toLowerCase();
+  const a = normalizeCourseName(courseName);
+  const b = normalizeCourseName(trackedCourse);
   return a.includes(b) || b.includes(a);
 }
 

@@ -88,21 +88,29 @@ export function extractBaseCourse(courseName) {
  * @returns {Object} Map of base course name to array of versions
  */
 export function groupCourseVersions(courses) {
-  const groups = {};
+  // Group on a case-, hyphen- and whitespace-insensitive key so spelling drift
+  // like "Relationship-Based Leadership" vs "Relationship Based Leadership"
+  // lands in ONE group. The group displays its most common spelling.
+  const byKey = {};
 
   courses.forEach(course => {
     const baseName = extractBaseCourse(course);
+    const key = baseName.toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
 
-    if (!groups[baseName]) {
-      groups[baseName] = {
-        baseName,
-        versions: [],
-        courseNames: []
-      };
+    if (!byKey[key]) {
+      byKey[key] = { versions: [], courseNames: [], spellings: {} };
     }
 
-    groups[baseName].versions.push(course);
-    groups[baseName].courseNames.push(course);
+    byKey[key].versions.push(course);
+    byKey[key].courseNames.push(course);
+    byKey[key].spellings[baseName] = (byKey[key].spellings[baseName] || 0) + 1;
+  });
+
+  const groups = {};
+  Object.values(byKey).forEach(({ versions, courseNames, spellings }) => {
+    // Most common spelling wins; ties keep the first one seen.
+    const baseName = Object.entries(spellings).sort((a, b) => b[1] - a[1])[0][0];
+    groups[baseName] = { baseName, versions, courseNames };
   });
 
   return groups;

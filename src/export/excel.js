@@ -1,6 +1,7 @@
 import XLSX from 'xlsx-js-style';
 import { formatCourseName, sortCoursesByPriority } from '../config/courses';
 import { getDateString, completionStatusLabel } from '../data/dataModel';
+import { courseShortLabel } from '../config/leadershipCourses';
 
 const FEEDBACK_FORM_URL = 'https://forms.office.com/r/qBfrHWQdAK';
 
@@ -1179,7 +1180,7 @@ export function exportLeadershipReportToExcel(reportData, selection, filename) {
   const lastCol = (count) => XLSX.utils.encode_col(count - 1);
 
   // ---- Sheet 1: All Leaders ----
-  const leaderHeader = ['Leader', 'Email', 'Supervisor(s)', 'Hire Date', ...trackedCourses, 'Compliance %'];
+  const leaderHeader = ['Leader', 'Email', 'Supervisor(s)', 'Hire Date', ...trackedCourses.map(courseShortLabel), 'Compliance %'];
   const leaderRows = [
     leaderHeader,
     ...leaders.map(l => [
@@ -1204,7 +1205,7 @@ export function exportLeadershipReportToExcel(reportData, selection, filename) {
   XLSX.utils.book_append_sheet(workbook, allSheet, 'All Leaders');
 
   // ---- Sheet 2: Selected Detail ----
-  const detailHeader = ['Leader', 'Hire Date', ...trackedCourses, 'Compliance %'];
+  const detailHeader = ['Leader', 'Hire Date', ...trackedCourses.map(courseShortLabel), 'Compliance %'];
   const detailRows = [
     detailHeader,
     ...detailLeaders.map(l => [
@@ -1297,7 +1298,7 @@ export function exportDashboardReportToExcel(report, filename) {
   // ---- Sheet 3: All Employees (per-course status grid) ----
   const trackedCourses = report.trackedCourses || [];
   const employees = report.employees || [];
-  const empHeader = ['Name', 'Email', 'Leader', 'Hire Date', ...trackedCourses, 'Completion %'];
+  const empHeader = ['Name', 'Email', 'Leader', 'Hire Date', ...trackedCourses.map(courseShortLabel), 'Completion %'];
   const empAoa = [
     empHeader,
     ...employees.map(e => [
